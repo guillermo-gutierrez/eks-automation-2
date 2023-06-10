@@ -365,11 +365,11 @@ EOF
 
   ## Creating the EKS cluster
 
-  read -p "Create EKS Cluster (Y/N)? " response
-  if [ "${response}" == "Y" ]
-  then
+#  read -p "Create EKS Cluster (Y/N)? " response
+#  if [ "${response}" == "Y" ]
+#  then
     eksctl create cluster -f /tmp/cluster.yaml
-  fi
+#  fi
 
 fi
 
