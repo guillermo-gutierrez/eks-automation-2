@@ -1,0 +1,278 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "
+  Cloudformation stack wich crate:
+    - 1 Ec2 Role with managed policy (AmazonSSMManagedInstanceCore, AmazonEC2FullAccess, AWSCloudFormationFullAccess)
+    - 1 Instance Profile for our Ec2 Role
+    - 2 Policies (EksAllAccessPolicy & IamLimitedAccess for our Role)
+    - 3 Managed Policies (CloudWatchWriteAccessArm, S3ReadWriteAccessArm, SMReadAccessArm)
+
+    All this are the minimun iam policies required for eksctl service:
+    https://eksctl.io/usage/minimum-iam-policies/
+  "
+
+#==========================================================================
+Parameters:
+  AppPrefix:
+    Type: String
+    Default: amx-ppl-cc
+
+  EnvironmentLower:
+    Type: String
+
+#==========================================================================
+Resources:
+  # Rol principal al que se le adjuntarán las políticas administradas por AWS y las propias
+  SSMEksIamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AppPrefix}-${EnvironmentLower}-iam-rol-eks-deployer"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              AWS:
+                - !Sub "arn:aws:iam::${AWS::AccountId}:role/AMX-PPL-CB-EKS-KUBECTL-${AWS::AccountId}-${AWS::Region}"
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:${AWS::Partition}:iam::${AWS::Partition}:policy/AmazonSSMManagedInstanceCore"
+        - !Sub "arn:${AWS::Partition}:iam::${AWS::Partition}:policy/AmazonEC2FullAccess"
+        - !Sub "arn:${AWS::Partition}:iam::${AWS::Partition}:policy/AWSCloudFormationFullAccess"
+        - !Sub "arn:${AWS::Partition}:iam::${AWS::Partition}:policy/CloudWatchAgentServerPolicy"
+
+      Tags:
+        - Key: Name
+          Value: !Sub "${AppPrefix}-${EnvironmentLower}-iam-rol-eks-deployer"
+        - Key: Nombre
+          Value: !Sub "${AppPrefix}-${EnvironmentLower}-iam-rol-eks-deployer"
+
+  # Perfil que se adjuntará al Ec2
+  ServerInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Sub "${AppPrefix}-${EnvironmentLower}-ec2-eks-deployer-profile"
+      Path: /
+      Roles:
+        - !Ref SSMEksIamRole
+
+  # Políticas requeridas para ejecutar ekctl: https://eksctl.io/usage/minimum-iam-policies/
+  EksAllAccessPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "${AppPrefix}-${EnvironmentLower}-iam-p-eks-all"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action: 'eks:*'
+          Resource: '*'
+        - Action:
+            - 'ssm:GetParameter'
+            - 'ssm:GetParameters'
+          Resource:
+            - !Sub "arn:${AWS::Partition}:ssm:*:${AWS::AccountId}:parameter/aws/*"
+            - !Sub "arn:${AWS::Partition}:ssm:*::parameter/aws/*"
+          Effect: Allow
+        - Action:
+            - 'kms:CreateGrant'
+            - 'kms:DescribeKey'
+          Resource: "*"
+          Effect: Allow
+        - Action:
+            - 'logs:PutRetentionPolicy'
+          Resource: "*"
+          Effect: Allow
+      Roles:
+        - !Ref SSMEksIamRole
+
+  IamLimitedAccess:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "${AppPrefix}-${EnvironmentLower}-iam-p-iam-limited"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'iam:CreateInstanceProfile'
+              - 'iam:DeleteInstanceProfile'
+              - 'iam:GetInstanceProfile'
+              - 'iam:RemoveRoleFromInstanceProfile'
+              - 'iam:GetRole'
+              - 'iam:ListRoles'
+              - 'iam:CreateRole'
+              - 'iam:DeleteRole'
+              - 'iam:AttachRolePolicy'
+              - 'iam:PutRolePolicy'
+              - 'iam:ListInstanceProfiles'
+              - 'iam:AddRoleToInstanceProfile'
+              - 'iam:ListInstanceProfilesForRole'
+              - 'iam:ListOpenIDConnectProviders'
+              - 'iam:PassRole'
+              - 'iam:DetachRolePolicy'
+              - 'iam:DeleteRolePolicy'
+              - 'iam:GetRolePolicy'
+              - 'iam:GetOpenIDConnectProvider'
+              - 'iam:CreateOpenIDConnectProvider'
+              - 'iam:DeleteOpenIDConnectProvider'
+              - 'iam:TagOpenIDConnectProvider'
+              - 'iam:ListAttachedRolePolicies'
+              - 'iam:TagRole'
+              - 'iam:GetPolicy'
+              - 'iam:CreatePolicy'
+              - 'iam:DeletePolicy'
+              - 'iam:ListPolicyVersions'
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/eksctl-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/eksctl-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/eksctl-*"
+              # Recurso añadido para la correcta creación de las políticas del ALB y metrics
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/AWSLoadBalancerControllerIAMPolicy"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/eks-fargate-logging-policy"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/eksctl-managed-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/EKS-Fargate-ADOT-ServiceAccount-Role"
+          - Effect: Allow
+            Action:
+              - 'iam:GetRole'
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/*"
+          - Effect: Allow
+            Action:
+              - 'iam:CreateServiceLinkedRole'
+            Resource: '*'
+            Condition:
+              StringEquals:
+                'iam:AWSServiceName':
+                  - eks.amazonaws.com
+                  - eks-nodegroup.amazonaws.com
+                  - eks-fargate.amazonaws.com
+      Roles:
+        - !Ref SSMEksIamRole
+
+  # Políticas administradas requeridas para el cluster de eks
+  CloudWatchWriteAccess:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Política que permite la escritura de logs desde el aplicativo alojado en eks
+      ManagedPolicyName: !Sub "${AppPrefix}-${EnvironmentLower}-iam-p-cwtch-write"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'logs:CreateLogStream'
+              - 'logs:DescribeLogGroups'
+              - 'logs:DescribeLogStreams'
+              - 'logs:CreateLogGroup'
+
+            Resource:
+              - !Sub "arn:${AWS::Partition}:logs:*:${AWS::AccountId}:log-group:*"
+          - Effect: Allow
+            Action:
+              - 'logs:PutLogEvents'
+            Resource:
+              - !Sub "arn:${AWS::Partition}:logs:*:${AWS::AccountId}:log-group:*:log-stream:*"
+
+  S3ReadWriteAccess:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Política que permite la lectura y escritura de archivos desde el aplicativo alojado en eks a buckets de s3
+      ManagedPolicyName: !Sub "${AppPrefix}-${EnvironmentLower}-iam-p-s3-read-write"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - 's3:ReplicateObject'
+              - 's3:PutObject'
+              - 's3:GetObjectAcl'
+              - 's3:GetObject'
+              - 's3:ReplicateTags'
+              - 's3:PutObjectTagging'
+              - 's3:DeleteObject'
+
+            Resource:
+              - !Sub "arn:${AWS::Partition}:s3:::*/*"
+
+  SMKMSReadAccess:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Política que permite la lectura de secretos y uso de kms desde el aplicativo alojado en eks
+      ManagedPolicyName: !Sub "${AppPrefix}-${EnvironmentLower}-iam-p-sm-kms-read"
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - 'secretsmanager:GetResourcePolicy'
+              - 'secretsmanager:GetSecretValue'
+              - 'secretsmanager:DescribeSecret'
+              - 'secretsmanager:ListSecretVersionIds'
+              - 'secretsmanager:TagResource'
+              - 'kms:GetParametersForImport'
+              - 'kms:GetPublicKey'
+              - 'kms:Decrypt'
+              - 'kms:GetKeyRotationStatus'
+              - 'kms:GetKeyPolicy'
+              - 'kms:GenerateDataKey'
+              - 'kms:DescribeKey'
+            Resource:
+              - !Sub "arn:${AWS::Partition}:secretsmanager:*:${AWS::AccountId}:secret:*"
+              - !Sub "arn:${AWS::Partition}:kms:*:${AWS::AccountId}:key/*"
+
+#==========================================================================
+Outputs:
+  SSMEksIamRoleName:
+    Description: Returns the role name.
+    Value: !Ref SSMEksIamRole
+    Export:
+      Name: ppl-cc-iam-rol-eks-name
+
+  SSMEksIamRoleArn:
+    Description: Returns the Amazon Resource Name (ARN) for the role.
+    Value: !GetAtt SSMEksIamRole.Arn
+    Export:
+      Name: ppl-cc-iam-rol-eks-arn
+
+  EksAllAccessPolicyID:
+    Description: Returns the policy name.
+    Value: !Ref EksAllAccessPolicy
+    Export:
+      Name: ppl-cc-iam-policy-eks-all-access
+
+  IamLimitedAccessID:
+    Description: Returns the policy name.
+    Value: !Ref IamLimitedAccess
+    Export:
+      Name: ppl-cc-iam-policy-iam-limited-access
+
+  ServerInstanceProfileID:
+    Description: Returns the name of the instance profile.
+    Value: !Ref ServerInstanceProfile
+    Export:
+      Name: ppl-cc-ec2-profile-id
+
+  CloudWatchWriteAccessArn:
+    Description: Returns the name of the instance profile.
+    Value: !Ref CloudWatchWriteAccess
+    Export:
+      Name: ppl-cc-iam-policy-cwtch-write-access
+  S3ReadWriteAccessArn:
+    Description: Returns the name of the instance profile.
+    Value: !Ref S3ReadWriteAccess
+    Export:
+      Name: ppl-cc-iam-policy-s3-read-write-access
+  SMKMSReadAccessArn:
+    Description: Returns the name of the instance profile.
+    Value: !Ref SMKMSReadAccess
+    Export:
+      Name: ppl-cc-iam-policy-sm-kms-read-access

@@ -1,0 +1,454 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  AWSEnvironment:
+    Type: String
+    Description: Sort of AWS AMX environment
+    AllowedValues:
+      - "PROD"
+      - "DES"
+      - "QA"
+
+Mappings:
+  EnvironmentToPipelineBucket:
+    PROD:
+      BucketName: arn:aws:s3:::amx-ppl-cc-prod-s3-create-eks
+    DES:
+      BucketName: arn:aws:s3:::amx-ppl-cc-des-s3-create-eks-1
+    QA:
+      BucketName: arn:aws:s3:::amx-ppl-cc-qa-s3-create-eks
+
+Resources:
+  EksAmazonCloudWatchEventRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-CW-EVENT-ROLE'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          -
+            Effect: 'Allow'
+            Principal:
+              Service:
+                - 'events.amazonaws.com'
+            Action: 'sts:AssumeRole'
+      Path: '/'
+      Policies:
+        -
+          PolicyName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-CW-EVENT-POLICY-1'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              -
+                Effect: Allow
+                Action: codepipeline:StartPipelineExecution
+                Resource: !Sub 'arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:AMX-PPL-CC-${AWSEnvironment}-PIPELINE-EKS'
+        -
+          PolicyName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-CW-EVENT-POLICY-2'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              -
+                Effect: Allow
+                Action: codebuild:StartBuild
+                Resource: 
+                  - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/AMX-PPL-CC-${AWSEnvironment}-CB-CONFIGURE-EKS'
+      Tags:
+        - Key: Project
+          Value: PaperlessCC
+        - Key: Aplication-ID
+          Value: ATOS-N1-202209-Dynamics
+        - Key: Application-Role
+          Value: Web
+        - Key: CF-Version
+          Value: "1"
+        - Key: Owner
+          Value: "Oswaldo Javier Contreras R"
+        - Key: Cost-Center
+          Value: "120101"
+        - Key: Customer
+          Value: External
+        - Key: Confidentiality
+          Value: Medium
+        - Key: Compliance
+          Value: PCI
+        - Key: Environment
+          Value: !Ref AWSEnvironment
+        - Key: Account-ID
+          Value: !Sub "${AWS::AccountId}"
+        - Key: Area
+          Value: ATOS
+
+
+  # IAM Role assumed by CodePipeline during pipeline executions. Gives permission to manage artifacts,
+  # Call CodeBuild project and monitor status, and create and update CloudFormation stacks as part
+  # of the deployment
+  EksPipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-IAM-PIPELINE-ROLE'
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codepipeline.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AWSCodeStarFullAccess'
+        - 'arn:aws:iam::aws:policy/AWSCodeCommitPowerUser'
+        - 'arn:aws:iam::aws:policy/CloudWatchEventsFullAccess'
+      Policies:
+        - PolicyName: CodePipelineAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: ListObjectsInBucket
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !FindInMap
+                    - EnvironmentToPipelineBucket
+                    - !Ref AWSEnvironment
+                    - BucketName
+              - Sid: GetAndPutArtifacts
+                Effect: Allow
+                Action:
+                  - s3:DeleteObject
+                  - s3:GetObject
+                  - s3:GetObjectVersion
+                  - s3:PutObject
+                  - s3:GetBucketPolicy
+                Resource:
+                  - !Join
+                    - ''
+                    - - !FindInMap
+                        - EnvironmentToPipelineBucket
+                        - !Ref AWSEnvironment
+                        - BucketName
+                      - /*
+              - Sid: ExecuteCloudFormation
+                Effect: Allow
+                Action:
+                  - cloudformation:CreateChangeSet
+                  - cloudformation:CreateStack
+                  - cloudformation:DeleteChangeSet
+                  - cloudformation:DeleteStack
+                  - cloudformation:DescribeChangeSet
+                  - cloudformation:DescribeStackEvents
+                  - cloudformation:DescribeStackResource
+                  - cloudformation:DescribeStackResources
+                  - cloudformation:DescribeStacks
+                  - cloudformation:ExecuteChangeSet
+                  - cloudformation:List*
+                  - cloudformation:SetStackPolicy
+                  - cloudformation:UpdateStack
+                  - cloudformation:UpdateTerminationProtection
+                  - cloudformation:GetTemplate
+                  - cloudformation:ValidateTemplate
+                Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/*'
+              - Sid: CodeBuildRoleToCloudFormation
+                Effect: Allow
+                Action:
+                  - codebuild:StartBuild
+                  - codebuild:BatchGetBuilds
+                  - codebuild:StopBuild
+                Resource: 
+                  - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/AMX-PPL-CC-${AWSEnvironment}-CB-CONFIGURE-EKS'
+              - Sid: CodeStarConnection
+                Effect: Allow
+                Action: codestar-connections:UseConnection
+                Resource: '*'
+              - Sid: SNSPublishApproval
+                Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:AMX-PPL-CC-${AWSEnvironment}-SNS-EKS-APPROVAL'
+              - Sid: CloudWatchLogGroups
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/paperless/AMX-PPL-CC-${AWSEnvironment}-CW-LOGGROUP-DEPLOY-EKS:*'
+              - Sid: ManageEncryption
+                Effect: Allow
+                Action:
+                  - kms:Decrypt
+                  - kms:Describe*
+                Resource:
+                  - !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*'
+      Tags:
+        - Key: Project
+          Value: PaperlessCC
+        - Key: Aplication-ID
+          Value: ATOS-N1-202209-Dynamics
+        - Key: Application-Role
+          Value: Web
+        - Key: CF-Version
+          Value: "1"
+        - Key: Owner
+          Value: "Oswaldo Javier Contreras R"
+        - Key: Cost-Center
+          Value: "120101"
+        - Key: Customer
+          Value: External
+        - Key: Confidentiality
+          Value: Medium
+        - Key: Compliance
+          Value: PCI
+        - Key: Environment
+          Value: !Ref AWSEnvironment
+        - Key: Account-ID
+          Value: !Sub "${AWS::AccountId}"
+        - Key: Area
+          Value: ATOS
+             
+  # Role assumed by CodeBuild projects. Permissions granted allow for logging to CloudWatch, managing artifacts,
+  # validating CloudFormation templates, and the various permissions required to execute taskcat.
+  # Note: The CloudFormation stack policy is also attached to this role, since the same permissions are required to
+  # create/delete the test stacks through taskcat
+  EksCodeBuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-IAM-CB-ROLE'
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CodeBuildAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: LogToCloudWatch
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                Resource: 
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/paperless/AMX-PPL-CC-${AWSEnvironment}-CW-LOGGROUP-EKS-CONFIGURE:*" 
+              - Sid: GetAndPutArtifacts
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  - !Join
+                    - ''
+                    - - !FindInMap
+                        - EnvironmentToPipelineBucket
+                        - !Ref AWSEnvironment
+                        - BucketName
+                      - /*
+              - Sid: ListObjectsForCodeBuild
+                Effect: Allow
+                Action:
+                  - s3:ListBucket
+                Resource:
+                  - !FindInMap
+                    - EnvironmentToPipelineBucket
+                    - !Ref AWSEnvironment
+                    - BucketName
+              - Sid: CloudformationPermission
+                Effect: Allow
+                Action: cloudformation:*
+                Resource: '*'
+              - Sid: ManageEncryption
+                Effect: Allow
+                Action:
+                  - kms:Encrypt
+                  - kms:Decrypt
+                  - kms:Describe*
+                  - kms:GenerateDataKey
+                Resource:
+                  - !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*'
+              - Sid: ListEksClusters
+                Effect: Allow
+                Action:
+                  - eks:DescribeCluster
+                  - eks:ListClusters
+                Resource: !Sub arn:aws:eks:${AWS::Region}:${AWS::AccountId}:cluster/*
+              - Sid: Ec2Permissions
+                Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeDhcpOptions
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeVpcs
+                  - ec2:CreateNetworkInterfacePermission
+                Resource: '*'
+              - Sid: IamPermissions
+                Effect: Allow
+                Action:
+                  - iam:GetRole
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:AttachRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:PassRole
+                  - iam:DetachRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:GetRolePolicy
+                  - iam:GetOpenIDConnectProvider
+                  - iam:CreateOpenIDConnectProvider
+                  - iam:DeleteOpenIDConnectProvider
+                  - iam:TagOpenIDConnectProvider
+                  - iam:ListAttachedRolePolicies
+                  - iam:TagRole
+                  - iam:GetPolicy
+                  - iam:CreatePolicy
+                  - iam:DeletePolicy
+                  - iam:ListPolicyVersions
+                  - iam:ListOpenIDConnectProviders
+                Resource: '*'
+              - Sid: AssumeRole
+                Effect: Allow
+                Action:
+                  - sts:AssumeRole
+                Resource: !GetAtt EksKubectlRole.Arn
+      Tags:
+        - Key: Project
+          Value: PaperlessCC
+        - Key: Aplication-ID
+          Value: ATOS-N1-202209-Dynamics
+        - Key: Application-Role
+          Value: Web
+        - Key: CF-Version
+          Value: "1"
+        - Key: Owner
+          Value: "Oswaldo Javier Contreras R"
+        - Key: Cost-Center
+          Value: "120101"
+        - Key: Customer
+          Value: External
+        - Key: Confidentiality
+          Value: Medium
+        - Key: Compliance
+          Value: PCI
+        - Key: Environment
+          Value: !Ref AWSEnvironment
+        - Key: Account-ID
+          Value: !Sub "${AWS::AccountId}"
+        - Key: Area
+          Value: ATOS
+      
+  EksKubectlRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "AMX-PPL-CB-EKS-KUBECTL-${AWS::AccountId}-${AWS::Region}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action:
+              - "sts:AssumeRole"
+      Path: "/"
+      Policies:
+        - PolicyName: EksEvents
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Sid: EksPermissions
+                Effect: Allow
+                Action:
+                  - eks:DescribeCluster
+                  - eks:ListClusters
+                  - eks:UntagResource
+                  - eks:TagResource
+                  - eks:ListFargateProfiles
+                  - eks:DescribeFargateProfile
+                  - eks:CreateFargateProfile
+                  - eks:DeleteFargateProfile
+                Resource: '*'
+              - Sid: CloudformationPermission
+                Effect: Allow
+                Action:
+                  - cloudformation:ListStacks
+                  - cloudformation:ListStackResources
+                  - cloudformation:DescribeStacks
+                  - cloudformation:DescribeStackResources
+                  - cloudformation:DeleteStack
+                  - cloudformation:CreateStackSet
+                  - cloudformation:CreateStack
+                Resource: '*'
+              - Sid: IamPermissions
+                Effect: Allow
+                Action:
+                  - iam:GetRole
+                  - iam:CreateRole
+                  - iam:DeleteRole
+                  - iam:AttachRolePolicy
+                  - iam:PutRolePolicy
+                  - iam:PassRole
+                  - iam:DetachRolePolicy
+                  - iam:DeleteRolePolicy
+                  - iam:GetRolePolicy
+                  - iam:GetOpenIDConnectProvider
+                  - iam:CreateOpenIDConnectProvider
+                  - iam:DeleteOpenIDConnectProvider
+                  - iam:TagOpenIDConnectProvider
+                  - iam:ListAttachedRolePolicies
+                  - iam:TagRole
+                  - iam:GetPolicy
+                  - iam:CreatePolicy
+                  - iam:DeletePolicy
+                  - iam:ListPolicyVersions
+                Resource: '*'
+      Tags:
+        - Key: Project
+          Value: PaperlessCC
+        - Key: Aplication-ID
+          Value: ATOS-N1-202209-Dynamics
+        - Key: Application-Role
+          Value: Web
+        - Key: CF-Version
+          Value: "1"
+        - Key: Owner
+          Value: "Oswaldo Javier Contreras R"
+        - Key: Cost-Center
+          Value: "120101"
+        - Key: Customer
+          Value: External
+        - Key: Confidentiality
+          Value: Medium
+        - Key: Compliance
+          Value: PCI
+        - Key: Environment
+          Value: !Ref AWSEnvironment
+        - Key: Account-ID
+          Value: !Sub "${AWS::AccountId}"
+        - Key: Area
+          Value: ATOS
+
+Outputs:
+  EkspplCWRole: 
+    Description: CloudWatch EventBridge IAM role
+    Value: !GetAtt EksAmazonCloudWatchEventRole.Arn
+    Export:
+      Name: ppl-cc-cw-eks-role
+
+  EkspplPipelineRole:
+    Description: Pipeline IAM role
+    Value: !GetAtt EksPipelineRole.Arn
+    Export:
+      Name: ppl-cc-pipeline-eks-role
+
+  EkspplCBRole:
+    Description: CodeBuild IAM role
+    Value: !GetAtt EksCodeBuildRole.Arn
+    Export:
+      Name: ppl-cc-cb-eks-role
+  

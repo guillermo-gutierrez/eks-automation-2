@@ -1,0 +1,50 @@
+
+version: 0.2
+
+environment_variables:
+  plaintext:
+    AMX_PPL_ENV: "DES"
+    AMX_PPL_CLUSTER_EKS: "amx-ppl-cc-des"
+    AMX_APP_PREFIX: "amx-ppl-cc-des"
+    AMX_PPL_NAMESPACE: "amx-ppl-cc-des-ns"
+    AMX_PPL_VPC_ID: "vpc-0c9d013543a933d4a"
+    AMX_PPL_ECR_REPO: "602401143452.dkr.ecr.us-east-1.amazonaws.com"
+phases:
+  install:
+    commands:
+      - ip addr
+      - |
+        curl --silent \
+             --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
+      - mv -vf /tmp/eksctl /usr/local/bin
+      - chmod +x /usr/local/bin/eksctl
+      - curl -LO https://dl.k8s.io/release/v1.23.16/bin/linux/amd64/kubectl
+      - mv -vf kubectl /usr/local/bin
+      - chmod +x /usr/local/bin/kubectl
+      - kubectl version --client --output=yaml
+      - curl --silent --location https://get.helm.sh/helm-v3.10.2-linux-amd64.tar.gz  | tar xz -C /tmp
+      - mv /tmp/linux-amd64/helm /usr/local/bin && chmod +x /usr/local/bin/helm
+      - helm version --short
+      - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+      - unzip -u awscliv2.zip
+      - ./aws/install --bin-dir /root/.pyenv/shims/ --install-dir /usr/local/aws-cli --update
+      - aws --version
+  pre_build:
+    commands:
+      - oidc_id=$(aws eks describe-cluster --name $AMX_PPL_CLUSTER_EKS --region $AWS_REGION --query "cluster.identity.oidc.issuer" --output text | sed -e "s/^https:\/\///")
+      - oidc_provider=$(aws iam list-open-id-connect-providers | grep ${oidc_id} | cut -d "/" -f4)
+      - |
+        if [ -z "${oidc_provider}" ]
+        then
+          eksctl utils associate-iam-oidc-provider  \
+            --region $AWS_REGION                    \
+            --cluster $AMX_PPL_CLUSTER_EKS          \
+            --approve
+        fi
+  build:
+    commands:
+      - chmod +x bin/ConfigureEks.sh
+      - ./bin/ConfigureEks.sh $AMX_PPL_ENV $AMX_PPL_CLUSTER_EKS $AMX_APP_PREFIX $AMX_PPL_NAMESPACE $AMX_PPL_VPC_ID $AMX_PPL_ECR_REPO $AWS_REGION
+artifacts:
+  files:
+    - manifests/**/*

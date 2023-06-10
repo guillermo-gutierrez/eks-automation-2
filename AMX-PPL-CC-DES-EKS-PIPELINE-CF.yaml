@@ -1,0 +1,430 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  AWSEnvironment:
+    Type: String
+    Description: Sort of AWS AMX environment
+    AllowedValues:
+      - "PROD"
+      - "DES"
+      - "QA"
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: Define VPC ID for CodeBuild
+  SubnetId:
+    Type: AWS::EC2::Subnet::Id
+    Description: Define the Subnets ID
+  EmailNotification:
+    Type: String
+    Description: Email ID to send notifications
+    Default: 'guillermo.gutierrez@rackspace.com'
+  RepoConnectionArn:
+    Type: String
+    Default: 'arn:aws:codestar-connections:us-east-1:983406763236:connection/05ba9103-71fd-487e-9ad6-61b5c8201ef3'
+    Description: ARN of github coneection and AWS
+  GitHubRepositoryName:
+    Type: String
+    Default: 'guillermo-gutierrez/eks-automation'
+    Description: >
+      Name of the GitHub repository containing the CloudFormation template being deployed.
+  GitHubIntegrationBranch:
+    Type: String
+    Default: main
+    Description: >
+      Git branch on which integration occurs. Typical value here would be "master" but might differ
+      for your specific use case
+  EksCodebuildCMK:
+    Type: String
+    Default: 'arn:aws:kms:us-east-1:983406763236:key/571266d4-f4d4-45ba-8ef0-998613789a8a'
+    Description: Define the ARN of CMK key for CodeBuild
+
+Mappings:
+  EnvironmentToPipelineBucket:
+    PROD:
+      BucketName: amx-ppl-cc-prod-s3-create-eks
+    DES:
+      BucketName: amx-ppl-cc-des-s3-create-eks-1
+    QA:
+      BucketName: amx-ppl-cc-qa-s3-create-eks
+
+Resources:
+  EksSnsApprovalNotification:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-SNS-EKS-APPROVAL'
+      FifoTopic: false
+      Tags:
+        - Key: Project
+          Value: PaperlessCC
+        - Key: Aplication-ID
+          Value: ATOS-N1-202209-Dynamics
+        - Key: Application-Role
+          Value: Web
+        - Key: CF-Version
+          Value: "1"
+        - Key: Owner
+          Value: "Oswaldo Javier Contreras R"
+        - Key: Cost-Center
+          Value: "120101"
+        - Key: Customer
+          Value: External
+        - Key: Confidentiality
+          Value: Medium
+        - Key: Compliance
+          Value: PCI
+        - Key: Environment
+          Value: !Ref AWSEnvironment
+        - Key: Account-ID
+          Value: !Sub "${AWS::AccountId}"
+        - Key: Area
+          Value: ATOS
+      TopicName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-SNS-EKS-APPROVAL'
+
+  EksSnsApprovalSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !Ref EmailNotification
+      Protocol: 'email'
+      TopicArn: !Ref EksSnsApprovalNotification
+
+  EksSnsPipelinesNotification:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-SNS-EKS-EVENTS'
+      FifoTopic: false
+      Tags:
+        - Key: Project
+          Value: PaperlessCC
+        - Key: Aplication-ID
+          Value: ATOS-N1-202209-Dynamics
+        - Key: Application-Role
+          Value: Web
+        - Key: CF-Version
+          Value: "1"
+        - Key: Owner
+          Value: "Oswaldo Javier Contreras R"
+        - Key: Cost-Center
+          Value: "120101"
+        - Key: Customer
+          Value: External
+        - Key: Confidentiality
+          Value: Medium
+        - Key: Compliance
+          Value: PCI
+        - Key: Environment
+          Value: !Ref AWSEnvironment
+        - Key: Account-ID
+          Value: !Sub "${AWS::AccountId}"
+        - Key: Area
+          Value: ATOS
+      TopicName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-SNS-EKS-EVENTS'
+
+  EksEventBridgeToToSnsPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties: 
+      PolicyDocument:
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: events.amazonaws.com
+          Action: sns:Publish
+          Resource: !Ref EksSnsPipelinesNotification
+      Topics: 
+        - !Ref EksSnsPipelinesNotification 
+
+  # S3 Bucket to hold artifacts for the Pipeline. Only requirement is that the S3 bucket has
+  # versioning enabled. Other settings are following best practices for S3 buckets (encryption,
+  # access logging, blocking public access)
+  EksPipelineArtifactsBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !FindInMap
+        - EnvironmentToPipelineBucket
+        - !Ref AWSEnvironment
+        - BucketName
+      VersioningConfiguration:
+        Status: 'Suspended'
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'AES256'
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: True
+        BlockPublicPolicy: True
+        IgnorePublicAcls: True
+        RestrictPublicBuckets: True
+      Tags:
+        - Key: Project
+          Value: PaperlessCC
+        - Key: Aplication-ID
+          Value: ATOS-N1-202209-Dynamics
+        - Key: Application-Role
+          Value: Web
+        - Key: CF-Version
+          Value: "1"
+        - Key: Owner
+          Value: "Oswaldo Javier Contreras R"
+        - Key: Cost-Center
+          Value: "120101"
+        - Key: Customer
+          Value: External
+        - Key: Confidentiality
+          Value: Medium
+        - Key: Compliance
+          Value: PCI
+        - Key: Environment
+          Value: !Ref AWSEnvironment
+        - Key: Account-ID
+          Value: !Sub "${AWS::AccountId}"
+        - Key: Area
+          Value: ATOS
+
+  EksCodePipelineStateFailureEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub 'AMX-PPL-CC-${AWSEnvironment}-CW-EKS-PIPELINE-RULE'
+      Description: 'A CloudWatch Event Rule that sends a notification to provide notice over failed events from Infrastructure EKS pipeline'
+      State: 'ENABLED'
+      Targets:
+        - Arn: !Ref EksSnsPipelinesNotification
+          Id: !GetAtt EksSnsPipelinesNotification.TopicName
+          InputTransformer:
+            InputTemplate: '"The Pipeline has failed. Go to https://console.aws.amazon.com/codepipeline/home?region=us-east-1#/view/"'
+            InputPathsMap:
+              pipeline: "$.detail.pipeline"
+      EventPattern:
+        detail-type:
+          - 'CodePipeline Pipeline Execution State Change'
+        source:
+          - 'aws.codepipeline'
+        detail:
+          event:
+            - FAILED
+      RoleArn:
+          Fn::ImportValue: ppl-cc-cw-eks-role
+
+  EksCodebuildStateFailureEventRule:
+    Type: "AWS::Events::Rule"
+    Properties:
+      Name: !Sub 'AMX-PPL-CC-${AWSEnvironment}-CW-CODEBUILD-EKS-RULE'
+      Description: "Rule for sending failure notifications to SNS topic"
+      EventPattern:
+        source:
+          - aws.codebuild
+        detail-type:
+          - CodeBuild Build State Change
+        detail:
+          project-name:
+            - CodeBuildProjects
+          build-status:
+            - FAILED
+      State: "ENABLED"
+      Targets:
+        - Arn: !Ref EksSnsPipelinesNotification
+          Id: !GetAtt EksSnsPipelinesNotification.TopicName
+          InputTransformer:
+            InputTemplate: '"The project <project-name> has the next status: <build-status>. You can check <deep-link>"'
+            InputPathsMap:
+              project-name: "$.detail.project-name"
+              build-status: "$.detail.build-status"
+              deep-link: "$.detail.additional-information.logs.deep-link"
+      RoleArn:
+          Fn::ImportValue: ppl-cc-cw-eks-role
+
+  EksConfigureLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/paperless/AMX-PPL-CC-${AWSEnvironment}-CW-LOGGROUP-EKS-CONFIGURE'
+      RetentionInDays: 90
+      Tags:
+        - Key: Project
+          Value: PaperlessCC
+        - Key: Aplication-ID
+          Value: ATOS-N1-202209-Dynamics
+        - Key: Application-Role
+          Value: Web
+        - Key: CF-Version
+          Value: "1"
+        - Key: Owner
+          Value: "Oswaldo Javier Contreras R"
+        - Key: Cost-Center
+          Value: "120101"
+        - Key: Customer
+          Value: External
+        - Key: Confidentiality
+          Value: Medium
+        - Key: Compliance
+          Value: PCI
+        - Key: Environment
+          Value: !Ref AWSEnvironment
+        - Key: Account-ID
+          Value: !Sub "${AWS::AccountId}"
+        - Key: Area
+          Value: ATOS
+
+  EksCodeBuildConfigureSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for Codebuild
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Project
+          Value: PaperlessCC
+        - Key: Aplication-ID
+          Value: ATOS-N1-202209-Dynamics
+        - Key: Application-Role
+          Value: Web
+        - Key: CF-Version
+          Value: "1"
+        - Key: Owner
+          Value: "Oswaldo Javier Contreras R"
+        - Key: Cost-Center
+          Value: "120101"
+        - Key: Customer
+          Value: External
+        - Key: Confidentiality
+          Value: Medium
+        - Key: Compliance
+          Value: PCI
+        - Key: Environment
+          Value: !Ref AWSEnvironment
+        - Key: Account-ID
+          Value: !Sub "${AWS::AccountId}"
+        - Key: Area
+          Value: ATOS
+          
+  EksCodeBuildConfigureEgressSecurityGroup:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref EksCodeBuildConfigureSecurityGroup
+      CidrIp: '0.0.0.0/0'
+      FromPort: -1
+      ToPort: -1
+      IpProtocol: '-1'
+
+  EksCodeBuildConfigureProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      EncryptionKey: !Ref EksCodebuildCMK
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec/configure-eks.yaml
+      TimeoutInMinutes: 30
+      QueuedTimeoutInMinutes: 30
+      Environment:
+          Type: LINUX_CONTAINER
+          Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+          ImagePullCredentialsType: CODEBUILD
+          ComputeType: BUILD_GENERAL1_SMALL
+          PrivilegedMode: false
+          EnvironmentVariables:
+            - Name: TEMPLATE_PREFIX
+              Value: codebuild
+      LogsConfig:
+        CloudWatchLogs:
+          GroupName: !Ref EksConfigureLogGroup
+          Status: ENABLED
+      Name: !Sub 'AMX-PPL-CC-${AWSEnvironment}-CB-CONFIGURE-EKS'
+      ServiceRole: 
+        Fn::ImportValue: ppl-cc-cb-eks-role
+      VpcConfig:
+          SecurityGroupIds: 
+            - !GetAtt EksCodeBuildConfigureSecurityGroup.GroupId
+          Subnets: 
+            - !Ref SubnetId
+          VpcId: !Ref VpcId
+      Tags:
+        - Key: Project
+          Value: PaperlessCC
+        - Key: Aplication-ID
+          Value: ATOS-N1-202209-Dynamics
+        - Key: Application-Role
+          Value: Web
+        - Key: CF-Version
+          Value: "1"
+        - Key: Owner
+          Value: "Oswaldo Javier Contreras R"
+        - Key: Cost-Center
+          Value: "120101"
+        - Key: Customer
+          Value: External
+        - Key: Confidentiality
+          Value: Medium
+        - Key: Compliance
+          Value: PCI
+        - Key: Environment
+          Value: !Ref AWSEnvironment
+        - Key: Account-ID
+          Value: !Sub "${AWS::AccountId}"
+        - Key: Area
+          Value: ATOS
+
+  EksPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      ArtifactStore:
+        Type: S3
+        Location: !Ref EksPipelineArtifactsBucket
+      Name: !Sub 'AMX-PPL-CC-${AWSEnvironment}-PIPELINE-DEPLOY-EKS'
+      RestartExecutionOnUpdate: false
+      RoleArn:
+        Fn::ImportValue: ppl-cc-pipeline-eks-role
+      Stages:
+        - Name: Checkout
+          Actions:
+            - Name: Source
+              RunOrder: 1
+              ActionTypeId:
+                Category: Source
+                Owner: AWS
+                Provider: CodeStarSourceConnection
+                Version: 1
+              Configuration:
+                ConnectionArn: !Ref RepoConnectionArn
+                FullRepositoryId: !Ref GitHubRepositoryName
+                BranchName: !Ref GitHubIntegrationBranch
+                DetectChanges: false
+              OutputArtifacts:
+                - Name: SourceArtifact
+        - Name: ConfigureEKS
+          Actions:
+            - Name: ConfigureEKS
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref EksCodeBuildConfigureProject
+              InputArtifacts:
+                - Name: SourceArtifact
+              RunOrder: 1
+      Tags:
+        - Key: Project
+          Value: PaperlessCC
+        - Key: Aplication-ID
+          Value: ATOS-N1-202209-Dynamics
+        - Key: Application-Role
+          Value: Web
+        - Key: CF-Version
+          Value: "1"
+        - Key: Owner
+          Value: "Oswaldo Javier Contreras R"
+        - Key: Cost-Center
+          Value: "120101"
+        - Key: Customer
+          Value: External
+        - Key: Confidentiality
+          Value: Medium
+        - Key: Compliance
+          Value: PCI
+        - Key: Environment
+          Value: !Ref AWSEnvironment
+        - Key: Account-ID
+          Value: !Sub "${AWS::AccountId}"
+        - Key: Area
+          Value: ATOS

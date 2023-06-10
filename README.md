@@ -1,1 +1,1 @@
-# eks-automation-2
+# eks-automation
