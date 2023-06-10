@@ -35,21 +35,21 @@ phases:
       - chmod +x bin/install_eks_cluster.sh
       - ./bin/install_eks_cluster.sh 
               -x \
-              --appPrefix ${appPrefix} \
-              --envrionment ${environment} \
-              --keyARN ${keyARN} \
-              --region us-east-1 \
-              --vpcId ${vpcId} \
-              --cidrBlock ${cidrBlock} \
-              --sharedNodeSg ${sharedNodeSg} \
-              --subnet1 ${subnet1} \
-              --subnet2 ${subnet2} \
-              --eksClusterVersion ${eksClusterVersion} \
-              --CloudWatchWriteAccessPolicyArn ${CloudWatchWriteAccessPolicyArn} \
-              --S3ReadWriteAccessPolicyArn ${S3ReadWriteAccessPolicyArn} \
-              --SMKMSReadAccessPolicyArn ${SMKMSReadAccessPolicyArn} \
-              --EksIamRoleArn ${EksIamRoleArn} \
-              --CbEksIamRoleArn ${CbEksIamRoleArn} \
+              --appPrefix "${appPrefix}" \
+              --envrionment "${environment}" \
+              --keyARN "${keyARN}" \
+              --region "us-east-1" \
+              --vpcId "${vpcId}" \
+              --cidrBlock "${cidrBlock}" \
+              --sharedNodeSg "${sharedNodeSg}" \
+              --subnet1 "${subnet1}" \
+              --subnet2 "${subnet2}" \
+              --eksClusterVersion "${eksClusterVersion}" \
+              --CloudWatchWriteAccessPolicyArn "${CloudWatchWriteAccessPolicyArn}" \
+              --S3ReadWriteAccessPolicyArn "${S3ReadWriteAccessPolicyArn}" \
+              --SMKMSReadAccessPolicyArn "${SMKMSReadAccessPolicyArn}" \
+              --EksIamRoleArn "${EksIamRoleArn}" \
+              --CbEksIamRoleArn "${CbEksIamRoleArn}" \
 artifacts:
   files:
     - manifests/**/*
