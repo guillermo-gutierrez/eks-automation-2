@@ -30,6 +30,7 @@ phases:
       - ./aws/install --bin-dir /root/.pyenv/shims/ --install-dir /usr/local/aws-cli --update
       - aws --version
       - yum install jq -y
+      - jq --version
   build:
     commands:
       - chmod +x bin/install_eks_cluster.sh
