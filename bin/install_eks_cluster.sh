@@ -256,6 +256,9 @@ else
   exit 1
 fi
 
+ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output=text)
+EKS_ROLE_KUBECTL_ARN="arn:aws:iam::${ACCOUNT_ID}:role/AMX-PPL-CB-EKS-KUBECTL-${ACCOUNT_ID}-${AWS_REGION}"
+
 if [ -z "${accountId}" ] || [ -z "${vpcId}" ] || [ -z "${cidrBlock}" ] || [ -z "${sharedNodeSg}" ] || [ -z "${subnet1}" ] || [ -z "${subnet2}" ] || [ -z "${region}" ] || [ -z "${keyARN}" ]
 then
   echo "Missing aws configuration parameters"
