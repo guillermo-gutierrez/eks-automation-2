@@ -12,6 +12,7 @@ environment_variables:
 phases:
   install:
     commands:
+      - env
       - |
         curl --silent \
              --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_$(uname -s)_amd64.tar.gz" | tar xz -C /tmp
@@ -28,22 +29,26 @@ phases:
       - unzip -u awscliv2.zip
       - ./aws/install --bin-dir /root/.pyenv/shims/ --install-dir /usr/local/aws-cli --update
       - aws --version
-  pre_build:
-    commands:
-      - oidc_id=$(aws eks describe-cluster --name ${appPrefix}-${environment} --region $AWS_REGION --query "cluster.identity.oidc.issuer" --output text | sed -e "s/^https:\/\///")
-      - oidc_provider=$(aws iam list-open-id-connect-providers | grep ${oidc_id} | cut -d "/" -f4)
-      - |
-        if [ -z "${oidc_provider}" ]
-        then
-          eksctl utils associate-iam-oidc-provider  \
-            --region $AWS_REGION                    \
-            --cluster $AMX_PPL_CLUSTER_EKS          \
-            --approve
-        fi
+      - yum install jq -y
   build:
     commands:
-      - chmod +x bin/ConfigureEks.sh
-      - ./bin/ConfigureEks.sh ${environment} ${appPrefix}-${environment} ${appPrefix} ${appPrefix}-${environment}-ns ${vpcId} $AMX_PPL_ECR_REPO $AWS_REGION
+      - chmod +x bin/install_eks_cluster.sh
+      - ./bin/install_eks_cluster.sh 
+              --appPrefix ${appPrefix} \
+              --envrionment ${environment} \
+              --keyARN ${keyARN} \
+              --region us-east-1 \
+              --vpcId ${vpcId} \
+              --cidrBlock ${cidrBlock} \
+              --sharedNodeSg ${sharedNodeSg} \
+              --subnet1 ${subnet1} \
+              --subnet2 ${subnet2} \
+              --eksClusterVersion ${eksClusterVersion} \
+              --CloudWatchWriteAccessPolicyArn ${CloudWatchWriteAccessPolicyArn} \
+              --S3ReadWriteAccessPolicyArn ${S3ReadWriteAccessPolicyArn} \
+              --SMKMSReadAccessPolicyArn ${SMKMSReadAccessPolicyArn} \
+              --EksIamRoleArn ${EksIamRoleArn} \
+              --CbEksIamRoleArn ${CbEksIamRoleArn} \
 artifacts:
   files:
     - manifests/**/*

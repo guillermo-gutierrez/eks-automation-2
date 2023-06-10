@@ -1,5 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Parameters:
+  appPrefix:
+    Type: String
+    Description:
+    Default: amx-ppl-cc
   AWSEnvironment:
     Type: String
     Description: Sort of AWS AMX environment
@@ -7,12 +11,6 @@ Parameters:
       - "PROD"
       - "DES"
       - "QA"
-  VpcId:
-    Type: AWS::EC2::VPC::Id
-    Description: Define VPC ID for CodeBuild
-  SubnetId:
-    Type: AWS::EC2::Subnet::Id
-    Description: Define the Subnets ID
   EmailNotification:
     Type: String
     Description: Email ID to send notifications
@@ -23,28 +21,88 @@ Parameters:
     Description: ARN of github coneection and AWS
   GitHubRepositoryName:
     Type: String
-    Default: 'guillermo-gutierrez/eks-automation'
+    Default: 'guillermo-gutierrez/eks-automation-2'
     Description: >
       Name of the GitHub repository containing the CloudFormation template being deployed.
   GitHubIntegrationBranch:
     Type: String
     Default: main
     Description: >
-      Git branch on which integration occurs. Typical value here would be "master" but might differ
+      Git branch on which integration occurs. Typical value here would be "main" but might differ
       for your specific use case
   EksCodebuildCMK:
     Type: String
-    Default: 'arn:aws:kms:us-east-1:983406763236:key/571266d4-f4d4-45ba-8ef0-998613789a8a'
     Description: Define the ARN of CMK key for CodeBuild
+    Default: 'arn:aws:kms:us-east-1:983406763236:key/571266d4-f4d4-45ba-8ef0-998613789a8a'
+  EksSecretsCMK:
+    Type: String
+    Description: Define the ARN of CMK key for CodeBuild
+    Default: 'arn:aws:kms:us-east-1:983406763236:key/571266d4-f4d4-45ba-8ef0-998613789a8a'
+  CodePipelineS3Bucket:
+    Type: String
+    Default: 'amx-ppl-cc-des-s3-create-eks-1'
+    Description: CodePipeline Artifact S3 Bucket Name
 
-Mappings:
-  EnvironmentToPipelineBucket:
-    PROD:
-      BucketName: amx-ppl-cc-prod-s3-create-eks
-    DES:
-      BucketName: amx-ppl-cc-des-s3-create-eks-1
-    QA:
-      BucketName: amx-ppl-cc-qa-s3-create-eks
+# VPC Parameters
+#  vpcId:
+#    Type: AWS::EC2::VPC::Id
+#    Description: Define VPC ID for CodeBuild
+#    Default:
+#  cidrBlock:
+#    Type: String
+#    Description: VPCs CIDR Block
+#    Default:
+#  sharedNodeSg:
+#    Type: String
+#    Description: Shared Node Security Group
+#    Default:
+#  subnet1:
+#    Type: AWS::EC2::Subnet::Id
+#    Description: Define the Subnets ID
+#    Default:
+#  subnet2:
+#    Type: AWS::EC2::Subnet::Id
+#    Description: Define the Subnets ID
+#    Default:
+
+# EKS Parameters
+
+  eksClusterVersion:
+    Type: String
+    Description: Kubernetes version number
+    Default: 1.24
+
+# Policy Parameters
+
+  CloudWatchWriteAccessPolicyArn:
+    Type: String
+    Description: 
+    Default: arn:aws:iam::983406763236:policy/amx-ppl-cc-des-iam-p-cwtch-write
+  S3ReadWriteAccessPolicyArn:
+    Type: String
+    Description:
+    Default: arn:aws:iam::983406763236:policy/amx-ppl-cc-des-iam-p-s3-read-write
+  SMKMSReadAccessPolicyArn:
+    Type: String
+    Description:
+    Default: arn:aws:iam::983406763236:policy/amx-ppl-cc-des-iam-p-sm-kms-read
+  EksIamRoleArn:
+    Type: String
+    Description:
+    Default: arn:aws:iam::983406763236:role/amx-ppl-cc-des-iam-rol-eks-deployer
+  CbEksIamRoleArn:
+    Type: String
+    Description:
+    Default: arn:aws:iam::983406763236:role/AMX-PPL-CB-EKS-983406763236-us-east-1
+
+#Mappings:
+#  EnvironmentToPipelineBucket:
+#    PROD:
+#      BucketName: amx-ppl-cc-prod-s3-create-eks
+#    DES:
+#      BucketName: amx-ppl-cc-des-s3-create-eks-1
+#    QA:
+#      BucketName: amx-ppl-cc-qa-s3-create-eks
 
 Resources:
   EksSnsApprovalNotification:
@@ -130,53 +188,6 @@ Resources:
           Resource: !Ref EksSnsPipelinesNotification
       Topics: 
         - !Ref EksSnsPipelinesNotification 
-
-  # S3 Bucket to hold artifacts for the Pipeline. Only requirement is that the S3 bucket has
-  # versioning enabled. Other settings are following best practices for S3 buckets (encryption,
-  # access logging, blocking public access)
-  EksPipelineArtifactsBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !FindInMap
-        - EnvironmentToPipelineBucket
-        - !Ref AWSEnvironment
-        - BucketName
-      VersioningConfiguration:
-        Status: 'Suspended'
-      BucketEncryption:
-        ServerSideEncryptionConfiguration:
-          - ServerSideEncryptionByDefault:
-              SSEAlgorithm: 'AES256'
-      PublicAccessBlockConfiguration:
-        BlockPublicAcls: True
-        BlockPublicPolicy: True
-        IgnorePublicAcls: True
-        RestrictPublicBuckets: True
-      Tags:
-        - Key: Project
-          Value: PaperlessCC
-        - Key: Aplication-ID
-          Value: ATOS-N1-202209-Dynamics
-        - Key: Application-Role
-          Value: Web
-        - Key: CF-Version
-          Value: "1"
-        - Key: Owner
-          Value: "Oswaldo Javier Contreras R"
-        - Key: Cost-Center
-          Value: "120101"
-        - Key: Customer
-          Value: External
-        - Key: Confidentiality
-          Value: Medium
-        - Key: Compliance
-          Value: PCI
-        - Key: Environment
-          Value: !Ref AWSEnvironment
-        - Key: Account-ID
-          Value: !Sub "${AWS::AccountId}"
-        - Key: Area
-          Value: ATOS
 
   EksCodePipelineStateFailureEventRule:
     Type: AWS::Events::Rule
@@ -265,7 +276,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Security Group for Codebuild
-      VpcId: !Ref VpcId
+      VpcId: Fn::ImportValue VPCid
       SecurityGroupEgress:
         - IpProtocol: "-1"
           CidrIp: 0.0.0.0/0
@@ -304,6 +315,91 @@ Resources:
       ToPort: -1
       IpProtocol: '-1'
 
+  EksCodeBuildDeployProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      EncryptionKey: !Ref EksCodebuildCMK
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec/deploy-eks.yaml
+      TimeoutInMinutes: 30
+      QueuedTimeoutInMinutes: 30
+      Environment:
+          Type: LINUX_CONTAINER
+          Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+          ImagePullCredentialsType: CODEBUILD
+          ComputeType: BUILD_GENERAL1_SMALL
+          PrivilegedMode: false
+          EnvironmentVariables:
+            - Name: appPrefix
+              Value: !Ref appPrefix
+            - Name: environment
+              Value: !Ref AWSEnvironment
+            - Name: keyARN
+              Value: !Ref EksSecretsCMK
+            - Name: vpcId
+              Value: Fn::ImportValue VPCid
+            - Name: cidrBlock
+              Value: Fn::ImportValue VPCCidrBlock
+            - Name: sharedNodeSg
+              Value: Fn::ImportValue APPSecurityGroupId
+            - Name: subnet1
+              Value: Fn::ImportValue Subnet03
+            - Name: subnet2
+              Value: Fn::ImportValue Subnet04
+            - Name: eksClusterVersion
+              Value: !Ref eksClusterVersion
+            - Name: CloudWatchWriteAccessPolicyArn
+              Value: !Ref CloudWatchWriteAccessPolicyArn
+            - Name: S3ReadWriteAccessPolicyArn
+              Value: !Ref S3ReadWriteAccessPolicyArn
+            - Name: SMKMSReadAccessPolicyArn
+              Value: !Ref SMKMSReadAccessPolicyArn
+            - Name: EksIamRoleArn
+              Value: !Ref EksIamRoleArn
+            - Name: CbEksIamRoleArn
+              Value: !Ref CbEksIamRoleArn
+      LogsConfig:
+        CloudWatchLogs:
+          GroupName: !Ref EksConfigureLogGroup
+          Status: ENABLED
+      Name: !Sub 'AMX-PPL-CC-${AWSEnvironment}-CB-DEPLOY-EKS'
+      ServiceRole: 
+        Fn::ImportValue: ppl-cc-cb-eks-role
+      VpcConfig:
+          SecurityGroupIds: 
+            - !GetAtt EksCodeBuildConfigureSecurityGroup.GroupId
+          Subnets: 
+            - Fn::ImportValue Subnet03
+          VpcId: Fn::ImportValue VPCid
+      Tags:
+        - Key: Project
+          Value: PaperlessCC
+        - Key: Aplication-ID
+          Value: ATOS-N1-202209-Dynamics
+        - Key: Application-Role
+          Value: Web
+        - Key: CF-Version
+          Value: "1"
+        - Key: Owner
+          Value: "Oswaldo Javier Contreras R"
+        - Key: Cost-Center
+          Value: "120101"
+        - Key: Customer
+          Value: External
+        - Key: Confidentiality
+          Value: Medium
+        - Key: Compliance
+          Value: PCI
+        - Key: Environment
+          Value: !Ref AWSEnvironment
+        - Key: Account-ID
+          Value: !Sub "${AWS::AccountId}"
+        - Key: Area
+          Value: ATOS
+
   EksCodeBuildConfigureProject:
     Type: AWS::CodeBuild::Project
     Properties:
@@ -322,8 +418,34 @@ Resources:
           ComputeType: BUILD_GENERAL1_SMALL
           PrivilegedMode: false
           EnvironmentVariables:
-            - Name: TEMPLATE_PREFIX
-              Value: codebuild
+            - Name: appPrefix
+              Value: !Ref appPrefix
+            - Name: environment
+              Value: !Ref AWSEnvironment
+            - Name: keyARN
+              Value: !Ref EksSecretsCMK
+            - Name: vpcId
+              Value: Fn::ImportValue VPCid
+            - Name: cidrBlock
+              Value: Fn::ImportValue VPCCidrBlock
+            - Name: sharedNodeSg
+              Value: Fn::ImportValue APPSecurityGroupId
+            - Name: subnet1
+              Value: Fn::ImportValue Subnet03
+            - Name: subnet2
+              Value: Fn::ImportValue Subnet04
+            - Name: eksClusterVersion
+              Value: !Ref eksClusterVersion
+            - Name: CloudWatchWriteAccessPolicyArn
+              Value: !Ref CloudWatchWriteAccessPolicyArn
+            - Name: S3ReadWriteAccessPolicyArn
+              Value: !Ref S3ReadWriteAccessPolicyArn
+            - Name: SMKMSReadAccessPolicyArn
+              Value: !Ref SMKMSReadAccessPolicyArn
+            - Name: EksIamRoleArn
+              Value: !Ref EksIamRoleArn
+            - Name: CbEksIamRoleArn
+              Value: !Ref CbEksIamRoleArn
       LogsConfig:
         CloudWatchLogs:
           GroupName: !Ref EksConfigureLogGroup
@@ -335,8 +457,8 @@ Resources:
           SecurityGroupIds: 
             - !GetAtt EksCodeBuildConfigureSecurityGroup.GroupId
           Subnets: 
-            - !Ref SubnetId
-          VpcId: !Ref VpcId
+            - Fn::ImportValue Subnet03
+          VpcId: Fn::ImportValue VPCid
       Tags:
         - Key: Project
           Value: PaperlessCC
@@ -390,6 +512,35 @@ Resources:
                 DetectChanges: false
               OutputArtifacts:
                 - Name: SourceArtifact
+        - Name: ManualApprovalDeployEKS
+          Actions:
+            - Name: ManualApprovalDeployEKS
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: 1
+        - Name: DeployEKS
+          Actions:
+            - Name: DeployEKS
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref EksCodeBuildDeployProject
+              InputArtifacts:
+                - Name: SourceArtifact
+              RunOrder: 1
+        - Name: ManualApprovalConfigureEKS
+          Actions:
+            - Name: ManualApprovalConfigureEKS
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: 1
         - Name: ConfigureEKS
           Actions:
             - Name: ConfigureEKS
