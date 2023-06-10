@@ -34,6 +34,7 @@ phases:
     commands:
       - chmod +x bin/install_eks_cluster.sh
       - ./bin/install_eks_cluster.sh 
+              -x \
               --appPrefix ${appPrefix} \
               --envrionment ${environment} \
               --keyARN ${keyARN} \
