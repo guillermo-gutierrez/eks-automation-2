@@ -363,6 +363,11 @@ cloudWatch:
     logRetentionInDays: 3
 EOF
 
+CREDENTIALS=$(aws sts assume-role --role-arn ${EKS_ROLE_KUBECTL_ARN} --role-session-name amx-ppl-cc-admin)
+export AWS_ACCESS_KEY_ID="$(echo ${CREDENTIALS} | jq -r '.Credentials.AccessKeyId')"
+export AWS_SECRET_ACCESS_KEY="$(echo ${CREDENTIALS} | jq -r '.Credentials.SecretAccessKey')"
+export AWS_SESSION_TOKEN=$(echo "${CREDENTIALS}" | jq -r '.Credentials.SessionToken')
+
   ## Creating the EKS cluster
 
 #  read -p "Create EKS Cluster (Y/N)? " response
