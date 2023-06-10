@@ -42,6 +42,7 @@ exit 1;
 }
 
 eksClusterVersion="1.24"
+region="us-east-1"
 
 while getopts ":-:a:e:i:k:p:r:v:x" o; do
     case "${o}" in
