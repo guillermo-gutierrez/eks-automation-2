@@ -264,20 +264,13 @@ fi
 
 ## Check if cluster already exists...
 
-existingClusterName=$(aws eks list-clusters --output text | awk '{print $2}')
+existingClusterName=$(aws eks list-clusters --output text | grep ${clusterNameLower})
 
 if [ "${existingClusterName}" != "" ]
 then
-  echo "EKS Cluster already exists!"
-  echo "Comparing to calcuated EKS Cluster Name"
-  if [ "${clusterNameLower}" != "${existingClusterName}" ]
-  then
-    echo "There is an existing EKS cluster and the name differs from the calculated EKS Cluster Name."
-    echo "Please verify"
-    exit 1
-  else
-    echo "EKS Cluster Names match! Proceeding..."
-  fi
+  echo "EKS Cluster ${existingClusterName} already exists!"
+  echo "Please verify. Exiting!"
+  exit 1
 else
   echo "There is no exiting EKS Cluster"
   echo "Creating one with provided info..."
