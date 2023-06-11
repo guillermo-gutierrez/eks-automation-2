@@ -375,7 +375,7 @@ fi
 
 sg_id=$(aws eks describe-cluster --name ${clusterNameLower} --query cluster.resourcesVpcConfig.securityGroupIds[0] --region ${region} --output text)
 
-#cidrOrIp=$(ip a show ens5 | grep 'inet ' | awk '{print $2}')
+cidrOrIp=$(ip addr show eth0 | grep 'inet '| awk '{print $2}' | awk -F'/' '{print $1}')
 
 # Change the sg to the above sg id, and update the cidr to the private subnets cidr
 
@@ -383,7 +383,7 @@ aws ec2 authorize-security-group-ingress \
    --group-id ${sg_id}                   \
    --protocol tcp                        \
    --port 443                            \
-   --cidr ${cidrBlock}                   \
+   --cidr "${cidrOrIp}/32"               \
    --region ${region}
 
 ### Get credentials to access the eks cluster
@@ -392,3 +392,9 @@ aws eks --region ${region} update-kubeconfig --name ${clusterNameLower}
 ### Verify access to eks
 kubectl get nodes -A
 
+aws ec2 revoke-security-group-ingress \
+   --group-id ${sg_id}                   \
+   --protocol tcp                        \
+   --port 443                            \
+   --cidr "${cidrOrIp}/32"               \
+   --region ${region}

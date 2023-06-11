@@ -5,11 +5,13 @@ set -e
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output=text)
 AMX_PPL_ENV=$1
 AMX_PPL_CLUSTER_EKS=$2
+clusterNameLower=${AMX_PPL_CLUSTER_EKS,,}
 AMX_APP_PREFIX=$3
 AMX_PPL_NAMESPACE=$4
 AMX_PPL_VPC_ID=$5
 AMX_PPL_ECR_REPO=$6
 AWS_REGION=$7
+region=${AWS_REGION,,}
 EKS_DEPLOYER_ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${AMX_PPL_CLUSTER_EKS}-iam-rol-eks-deployer"
 EKS_ROLE_KUBECTL_ARN="arn:aws:iam::${ACCOUNT_ID}:role/AMX-PPL-CB-EKS-KUBECTL-${ACCOUNT_ID}-${AWS_REGION}"
 EKS_ROLE_BACKEND_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${AMX_PPL_CLUSTER_EKS}-${ACCOUNT_ID}-${AWS_REGION}"
@@ -19,6 +21,21 @@ CREDENTIALS=$(aws sts assume-role --role-arn ${EKS_ROLE_KUBECTL_ARN} --role-sess
 export AWS_ACCESS_KEY_ID="$(echo ${CREDENTIALS} | jq -r '.Credentials.AccessKeyId')"
 export AWS_SECRET_ACCESS_KEY="$(echo ${CREDENTIALS} | jq -r '.Credentials.SecretAccessKey')"
 export AWS_SESSION_TOKEN=$(echo "${CREDENTIALS}" | jq -r '.Credentials.SessionToken')
+
+# Get the id of the eks sg
+
+sg_id=$(aws eks describe-cluster --name ${clusterNameLower} --query cluster.resourcesVpcConfig.securityGroupIds[0] --region ${region} --output text)
+
+cidrOrIp=$(ip addr show eth0 | grep 'inet '| awk '{print $2}' | awk -F'/' '{print $1}')
+
+# Change the sg to the above sg id, and update the cidr to the private subnets cidr
+
+aws ec2 authorize-security-group-ingress \
+   --group-id ${sg_id}                   \
+   --protocol tcp                        \
+   --port 443                            \
+   --cidr "${cidrOrIp}/32"               \
+   --region ${region}
 
 aws eks update-kubeconfig            \
   --name ${AMX_PPL_CLUSTER_EKS}        \
@@ -149,6 +166,16 @@ then
     --approve
 fi
 curl https://raw.githubusercontent.com/aws-observability/aws-otel-collector/main/deployment-template/eks/otel-fargate-container-insights.yaml | sed "s/YOUR-EKS-CLUSTER-NAME/'${AMX_PPL_CLUSTER_EKS}'/" | kubectl apply -f -
+
+# Revoke ControlPlane Access
+
+aws ec2 revoke-security-group-ingress \
+   --group-id ${sg_id}                   \
+   --protocol tcp                        \
+   --port 443                            \
+   --cidr "${cidrOrIp}/32"               \
+   --region ${region}
+
 
 ####################
 ### Installation HPA
