@@ -305,7 +305,7 @@ vpc:
         id: "${subnet2}"
   clusterEndpoints:
     publicAccess: true
-    privateAccess: true
+    privateAccess: false
 
 secretsEncryption:
   # KMS key used for envelope encryption of Kubernetes secrets
