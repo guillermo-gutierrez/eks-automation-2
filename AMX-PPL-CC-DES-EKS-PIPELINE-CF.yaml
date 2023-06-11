@@ -2,7 +2,7 @@ AWSTemplateFormatVersion: '2010-09-09'
 Parameters:
   appPrefix:
     Type: String
-    Description:
+    Description: Application Prefix
     Default: amx-ppl-cc
   AWSEnvironment:
     Type: String
@@ -11,6 +11,7 @@ Parameters:
       - "PROD"
       - "DES"
       - "QA"
+    Default: "DES"
   EmailNotification:
     Type: String
     Description: Email ID to send notifications
@@ -76,23 +77,23 @@ Parameters:
 
   CloudWatchWriteAccessPolicyArn:
     Type: String
-    Description: 
+    Description: Cloudwatch Write Access Policy ARN
     Default: arn:aws:iam::983406763236:policy/amx-ppl-cc-des-iam-p-cwtch-write
   S3ReadWriteAccessPolicyArn:
     Type: String
-    Description:
+    Description: S3 Read Write Access Policy ARN
     Default: arn:aws:iam::983406763236:policy/amx-ppl-cc-des-iam-p-s3-read-write
   SMKMSReadAccessPolicyArn:
     Type: String
-    Description:
+    Description: SM KMS Read Access Policy ARN
     Default: arn:aws:iam::983406763236:policy/amx-ppl-cc-des-iam-p-sm-kms-read
   EksIamRoleArn:
     Type: String
-    Description:
+    Description: EKS IAM Role ARN
     Default: arn:aws:iam::983406763236:role/amx-ppl-cc-des-iam-rol-eks-deployer
   CbEksIamRoleArn:
     Type: String
-    Description:
+    Description: CodeBuild EKS IAM Role ARN
     Default: arn:aws:iam::983406763236:role/AMX-PPL-CB-EKS-983406763236-us-east-1
 
 #Mappings:
@@ -276,7 +277,8 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Security Group for Codebuild
-      VpcId: Fn::ImportValue VPCid
+      VpcId:
+        Fn::ImportValue: PPL-CC-VPCID
       SecurityGroupEgress:
         - IpProtocol: "-1"
           CidrIp: 0.0.0.0/0
@@ -340,15 +342,20 @@ Resources:
             - Name: keyARN
               Value: !Ref EksSecretsCMK
             - Name: vpcId
-              Value: Fn::ImportValue VPCid
+              Value:
+                Fn::ImportValue: PPL-CC-VPCID
             - Name: cidrBlock
-              Value: Fn::ImportValue VPCCidrBlock
+              Value:
+                Fn::ImportValue: PPL-CC-VPCCidrBlock
             - Name: sharedNodeSg
-              Value: Fn::ImportValue APPSecurityGroupId
+              Value:
+                Fn::ImportValue: PPL-CC-APPSecurityGroupID
             - Name: subnet1
-              Value: Fn::ImportValue Subnet03
+              Value:
+                Fn::ImportValue: PPL-CC-Subnet03ID
             - Name: subnet2
-              Value: Fn::ImportValue Subnet04
+              Value:
+                Fn::ImportValue: PPL-CC-Subnet04ID
             - Name: eksClusterVersion
               Value: !Ref eksClusterVersion
             - Name: CloudWatchWriteAccessPolicyArn
@@ -372,8 +379,9 @@ Resources:
           SecurityGroupIds: 
             - !GetAtt EksCodeBuildConfigureSecurityGroup.GroupId
           Subnets: 
-            - Fn::ImportValue Subnet03
-          VpcId: Fn::ImportValue VPCid
+            - Fn::ImportValue: PPL-CC-Subnet03ID
+          VpcId:
+            Fn::ImportValue: PPL-CC-VPCID
       Tags:
         - Key: Project
           Value: PaperlessCC
@@ -425,15 +433,20 @@ Resources:
             - Name: keyARN
               Value: !Ref EksSecretsCMK
             - Name: vpcId
-              Value: Fn::ImportValue VPCid
+              Value:
+                Fn::ImportValue: PPL-CC-VPCID
             - Name: cidrBlock
-              Value: Fn::ImportValue VPCCidrBlock
+              Value:
+                Fn::ImportValue: PPL-CC-VPCCidrBlock
             - Name: sharedNodeSg
-              Value: Fn::ImportValue APPSecurityGroupId
+              Value:
+                Fn::ImportValue: PPL-CC-APPSecurityGroupID
             - Name: subnet1
-              Value: Fn::ImportValue Subnet03
+              Value:
+                Fn::ImportValue: PPL-CC-Subnet03ID
             - Name: subnet2
-              Value: Fn::ImportValue Subnet04
+              Value:
+                Fn::ImportValue: PPL-CC-Subnet04ID
             - Name: eksClusterVersion
               Value: !Ref eksClusterVersion
             - Name: CloudWatchWriteAccessPolicyArn
@@ -457,8 +470,9 @@ Resources:
           SecurityGroupIds: 
             - !GetAtt EksCodeBuildConfigureSecurityGroup.GroupId
           Subnets: 
-            - Fn::ImportValue Subnet03
-          VpcId: Fn::ImportValue VPCid
+            - Fn::ImportValue: PPL-CC-Subnet03ID
+          VpcId:
+            Fn::ImportValue: PPL-CC-VPCID
       Tags:
         - Key: Project
           Value: PaperlessCC
@@ -490,7 +504,7 @@ Resources:
     Properties:
       ArtifactStore:
         Type: S3
-        Location: !Ref EksPipelineArtifactsBucket
+        Location: !Ref CodePipelineS3Bucket
       Name: !Sub 'AMX-PPL-CC-${AWSEnvironment}-PIPELINE-DEPLOY-EKS'
       RestartExecutionOnUpdate: false
       RoleArn:

@@ -80,7 +80,7 @@ fi
 ################
 ### Install Otel
 ################
-ContainerInsightsFargateProfile=$(aws eks describe-fargate-profiles --cluster-name ${AMX_PPL_CLUSTER_EKS} --fargate-profile-name ${AMX_PPL_CLUSTER_EKS}-fargate --output text --region ${AWS_REGION} | grep fargate-container-insights)
+ContainerInsightsFargateProfile=$(aws eks describe-fargate-profile --cluster-name ${AMX_PPL_CLUSTER_EKS} --fargate-profile-name ${AMX_PPL_CLUSTER_EKS}-fargate --output text --region ${AWS_REGION} | grep fargate-container-insights)
 if [ "${ContainerInsightsFargateProfile}" == "" ]
 then
   eksctl create fargateprofile           \

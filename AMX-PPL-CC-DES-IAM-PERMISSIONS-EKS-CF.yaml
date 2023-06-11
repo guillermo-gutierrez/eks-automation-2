@@ -52,6 +52,7 @@ Resources:
                 Action: codebuild:StartBuild
                 Resource: 
                   - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/AMX-PPL-CC-${AWSEnvironment}-CB-CONFIGURE-EKS'
+                  - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/AMX-PPL-CC-${AWSEnvironment}-CB-DEPLOY-EKS'
       Tags:
         - Key: Project
           Value: PaperlessCC
@@ -155,6 +156,7 @@ Resources:
                   - codebuild:StopBuild
                 Resource: 
                   - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/AMX-PPL-CC-${AWSEnvironment}-CB-CONFIGURE-EKS'
+                  - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/AMX-PPL-CC-${AWSEnvironment}-CB-DEPLOY-EKS'
               - Sid: CodeStarConnection
                 Effect: Allow
                 Action: codestar-connections:UseConnection
@@ -220,6 +222,11 @@ Resources:
             Principal:
               Service: codebuild.amazonaws.com
             Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+        - !Sub "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+        - !Sub "arn:aws:iam::aws:policy/AWSCloudFormationFullAccess"
+        - !Sub "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
       Policies:
         - PolicyName: CodeBuildAccess
           PolicyDocument:
@@ -232,8 +239,10 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                   - logs:DescribeLogStreams
+                  - logs:*
                 Resource: 
                   - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/paperless/AMX-PPL-CC-${AWSEnvironment}-CW-LOGGROUP-EKS-CONFIGURE:*" 
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/eks/*" 
               - Sid: GetAndPutArtifacts
                 Effect: Allow
                 Action:
@@ -268,6 +277,7 @@ Resources:
                   - kms:Decrypt
                   - kms:Describe*
                   - kms:GenerateDataKey
+                  - kms:*
                 Resource:
                   - !Sub 'arn:aws:kms:${AWS::Region}:${AWS::AccountId}:key/*'
               - Sid: ListEksClusters
@@ -275,7 +285,11 @@ Resources:
                 Action:
                   - eks:DescribeCluster
                   - eks:ListClusters
-                Resource: !Sub arn:aws:eks:${AWS::Region}:${AWS::AccountId}:cluster/*
+                  - eks:CreateCluster
+                  - eks:*
+                Resource:
+                  - !Sub arn:aws:eks:${AWS::Region}:${AWS::AccountId}:cluster/*
+                  - !Sub arn:aws:eks:${AWS::Region}:${AWS::AccountId}:fargateprofile/*
               - Sid: Ec2Permissions
                 Effect: Allow
                 Action:
