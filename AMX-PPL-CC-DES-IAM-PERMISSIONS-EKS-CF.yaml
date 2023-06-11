@@ -369,6 +369,11 @@ Resources:
               AWS: !Sub "arn:aws:iam::${AWS::AccountId}:root"
             Action:
               - "sts:AssumeRole"
+      ManagedPolicyArns:
+        - !Sub "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+        - !Sub "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
+        - !Sub "arn:aws:iam::aws:policy/AWSCloudFormationFullAccess"
+        - !Sub "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
       Path: "/"
       Policies:
         - PolicyName: EksEvents
