@@ -1,7 +1,5 @@
 #!/bin/bash -xv
 
-set -e
-
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output=text)
 AMX_PPL_ENV=$1
 AMX_PPL_CLUSTER_EKS=$2
@@ -49,9 +47,7 @@ then
   kubectl get -n kube-system configmap/aws-auth -o yaml | awk "/mapRoles: \|/{print;print \"${ROLE}\";next}1" > /tmp/aws-auth-patch-backend.yml
   kubectl patch configmap/aws-auth -n kube-system --patch "$(cat /tmp/aws-auth-patch-backend.yml)"
 fi
-set +e
 EksCheckRoleKubectl=$(kubectl get cm aws-auth -n kube-system -o yaml | grep rolearn | grep ${EKS_ROLE_KUBECTL_ARN})
-set -e
 if [ "${EksCheckRoleKubectl}" == "" ]
 then
   ROLE="    - groups:\n      - system:masters\n      rolearn: ${EKS_ROLE_KUBECTL_ARN}\n      username: codebuild-kubectl"
