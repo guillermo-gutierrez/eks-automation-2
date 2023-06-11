@@ -1,5 +1,7 @@
 #!/bin/bash -xv
 
+set -e
+
 ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output=text)
 AMX_PPL_ENV=$1
 AMX_PPL_CLUSTER_EKS=$2
