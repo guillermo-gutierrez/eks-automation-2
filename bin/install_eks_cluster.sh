@@ -264,7 +264,7 @@ fi
 
 ## Check if cluster already exists...
 
-existingClusterName=$(aws eks list-clusters --output text | grep ${clusterNameLower})
+existingClusterName=$(aws eks list-clusters --output text | grep "${clusterNameLower}")
 
 if [ "${existingClusterName}" != "" ]
 then
