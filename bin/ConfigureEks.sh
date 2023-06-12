@@ -165,6 +165,12 @@ then
 fi
 curl https://raw.githubusercontent.com/aws-observability/aws-otel-collector/main/deployment-template/eks/otel-fargate-container-insights.yaml | sed "s/YOUR-EKS-CLUSTER-NAME/'${AMX_PPL_CLUSTER_EKS}'/" | kubectl apply -f -
 
+# Wait a little for components to deploy
+sleep 60
+
+# Check deployed pods
+kubectl get pods -A
+
 # Revoke ControlPlane Access
 
 aws ec2 revoke-security-group-ingress \
