@@ -1,0 +1,78 @@
+apiVersion: eksctl.io/v1alpha5
+kind: ClusterConfig
+
+metadata:
+  name: "CLUSTERNAMELOWER_PLACEHOLDER"
+  region: "REGION_PLACEHOLDER"
+  version: "EKSVERSION_PLACEHOLDER"
+
+vpc:
+  id: "VPCID_PLACEHOLDER"
+  cidr: "CIDRBLOCK_PLACEHOLDER"
+  sharedNodeSecurityGroup: "SHAREDNODESG_PLACEHOLDER"
+  subnets:
+    private:
+      "REGION_PLACEHOLDERa":
+        # ${CLUSTERNAMEUPPER_PLACEHOLDER}-VPC-PRV-APP-01
+        id: "SUBNET1_PLACEHOLDER"
+      "REGION_PLACEHOLDERb":
+        # ${CLUSTERNAMEUPPER_PLACEHOLDER}-VPC-PRV-APP-02
+        id: "SUBNET2_PLACEHOLDER"
+  clusterEndpoints:
+    publicAccess: true
+    privateAccess: false
+
+secretsEncryption:
+  # KMS key used for envelope encryption of Kubernetes secrets
+  # ${clusterNameUpper}-KMS-EKS
+  keyARN: "KEYARN_PLACEHOLDER"
+
+fargateProfiles:
+  - name: "CLUSTERNAMELOWER_PLACEHOLDER-fargate"
+    selectors:
+      # All workloads in the "kube-system" Kubernetes namespace will be
+      # scheduled onto Fargate:
+      - namespace: "NAMESPACE_PLACEHOLDER"
+      - namespace: kube-system
+
+      # Namespace requerido para ADOT
+      - namespace: fargate-container-insights
+
+iam:
+  withOIDC: true
+  serviceAccounts:
+    - metadata:
+        name: "CLUSTERNAMELOWER_PLACEHOLDER-sa"
+        namespace: "CLUSTERNAMELOWER_PLACEHOLDER-ns"
+      attachPolicyARNs:
+        - "CLOUDWATCHWRITEACCESSPOLICYARN_PLACEHOLDER"
+        - "S3READWRITEACCESSPOLICYARN_PLACEHOLDER"
+        - "SMKMSREADACCESSPOLICYARN_PLACEHOLDER"
+
+iamIdentityMappings:
+
+# This is for EC2 (deployer)
+  - arn: "EKSIAMROLEARN_PLACEHOLDER"
+    groups:
+      - system:masters
+    username: "APPPREFIX_PLACEHOLDER-admin"
+    noDuplicateARNs: true # prevents shadowing of ARNs
+
+# CodeBuild access
+  - arn: "CBEKSIAMROLEARN_PLACEHOLDER"
+    groups:
+      - system:masters
+    username: codebuild-eks
+    noDuplicateARNs: true # prevents shadowing of ARNs
+
+  - account: "ACCOUNTID_PLACEHOLDER" # account must be configured with no other options
+
+cloudWatch:
+  clusterLogging:
+    # enable specific types of cluster control plane logs
+    enableTypes: ["*"]
+    # all supported types: "api", "audit", "authenticator", "controllerManager", "scheduler"
+    # supported special values: "*" and "all"
+    # Sets the number of days to retain the logs for (see [CloudWatch docs](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutRetentionPolicy.html#API_PutRetentionPolicy_RequestSyntax)).
+    # By default, log data is stored in CloudWatch Logs indefinitely.
+    logRetentionInDays: 3
