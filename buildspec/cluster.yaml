@@ -13,10 +13,10 @@ vpc:
   subnets:
     private:
       "REGION_PLACEHOLDERa":
-        # ${CLUSTERNAMEUPPER_PLACEHOLDER}-VPC-PRV-APP-01
+        # CLUSTERNAMEUPPER_PLACEHOLDER-VPC-PRV-APP-01
         id: "SUBNET1_PLACEHOLDER"
       "REGION_PLACEHOLDERb":
-        # ${CLUSTERNAMEUPPER_PLACEHOLDER}-VPC-PRV-APP-02
+        # CLUSTERNAMEUPPER_PLACEHOLDER-VPC-PRV-APP-02
         id: "SUBNET2_PLACEHOLDER"
   clusterEndpoints:
     publicAccess: true
@@ -24,7 +24,7 @@ vpc:
 
 secretsEncryption:
   # KMS key used for envelope encryption of Kubernetes secrets
-  # ${clusterNameUpper}-KMS-EKS
+  # CLUSTERNAMEUPPER_PLACEHOLDER-KMS-EKS
   keyARN: "KEYARN_PLACEHOLDER"
 
 fargateProfiles:
