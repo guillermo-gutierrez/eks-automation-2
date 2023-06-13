@@ -33,24 +33,118 @@ phases:
       - jq --version
   build:
     commands:
-      - chmod +x bin/install_eks_cluster.sh
-      - ./bin/install_eks_cluster.sh 
-              -x \
-              --appPrefix "${appPrefix}" \
-              --envrionment "${environment}" \
-              --keyARN "${keyARN}" \
-              --region "us-east-1" \
-              --vpcId "${vpcId}" \
-              --cidrBlock "${cidrBlock}" \
-              --sharedNodeSg "${sharedNodeSg}" \
-              --subnet1 "${subnet1}" \
-              --subnet2 "${subnet2}" \
-              --eksClusterVersion "${eksClusterVersion}" \
-              --CloudWatchWriteAccessPolicyArn "${CloudWatchWriteAccessPolicyArn}" \
-              --S3ReadWriteAccessPolicyArn "${S3ReadWriteAccessPolicyArn}" \
-              --SMKMSReadAccessPolicyArn "${SMKMSReadAccessPolicyArn}" \
-              --EksIamRoleArn "${EksIamRoleArn}" \
-              --CbEksIamRoleArn "${CbEksIamRoleArn}" \
+      ## Obtain some info first
+      # accountId
+      - set -x
+      - clusterNameLower="${appPrefix,,}-${environment,,}"
+      - clusterNameUpper="${appPrefix^^}-${environment^^}"
+      - namespace="${clusterNameLower}-ns"
+      - |
+        if [ "${accountId}" == "" ]
+        then
+          accountId=$(aws sts get-caller-identity --query "Account" --output text)
+        else
+          accountId=$(curl -s http://169.254.169.254/latest/dynamic/instance-identity/document | jq .accountId -r)
+        fi
+      # region
+      - |
+        if [ "${region}" == "" ]
+        then
+          region=$AWS_REGION
+        fi
+      # vpcId
+      - |
+        if [ "${vpcId}" == "" ]
+        then
+          vpcId=$(aws ec2 describe-vpcs --query 'Vpcs[0].VpcId' --output text)
+        fi
+      - |
+        if [ "${vpcId}" != "" ]
+        then
+          # cidrBlock
+          if [ "${cidrBlock}" == "" ]
+          then
+            cidrBlock=$(aws ec2 describe-vpcs --query 'Vpcs[0].CidrBlock' --output text)
+          fi
+          # sharedNodeSg
+          if [ "${sharedNodeSg}" == "" ]
+          then
+            sharedNodeSg=$(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=${vpcId}" "Name=tag:Name,Values=${appPrefix^^}-${environment^^}-VPC-SG-APP" --query "SecurityGroups[*].GroupId" --output text)
+          fi
+          # subnet1
+          if [ "${subnet1}" == "" ]
+          then
+            subnet1=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${vpcId}" "Name=tag:Name,Values=${appPrefix^^}-${environment^^}-VPC-PRV-APP-01" --query "Subnets[*].SubnetId" --output text)
+          fi
+          # subnet2
+          if [ "${subnet2}" == "" ]
+          then
+            subnet2=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${vpcId}" "Name=tag:Name,Values=${appPrefix^^}-${environment^^}-VPC-PRV-APP-02" --query "Subnets[*].SubnetId" --output text)
+          fi
+        else
+          echo "No VPC found, exiting..."
+          exit 1
+        fi
+      - |
+        if [ -z "${accountId}" ] || [ -z "${vpcId}" ] || [ -z "${cidrBlock}" ] || [ -z "${sharedNodeSg}" ] || [ -z "${subnet1}" ] || [ -z "${subnet2}" ] || [ -z "${region}" ] || [ -z "${keyARN}" ]
+        then
+          echo "Missing aws configuration parameters"
+          exit 1;
+        fi
+      ## Check if cluster already exists...
+      - existingClusterName=$(aws eks list-clusters --output text | grep "${clusterNameLower}" || true)
+      - |
+        if [ "${existingClusterName}" != "" ]
+        then
+          echo "EKS Cluster ${existingClusterName} already exists!"
+          echo "Please verify. Exiting!"
+          exit 1
+        else
+          echo "There is no exiting EKS Cluster"
+          echo "Creating one with provided info..."
+        fi
+      - sed -i.bk 's/CLUSTERNAMELOWER_PLACEHOLDER/'${clusterNameLower}'/g' buildspec/cluster.yaml
+      - sed -i.bk 's/CLUSTERNAMEUPPER_PLACEHOLDER/'${clusterNameUpper}'/g' buildspec/cluster.yaml
+      - sed -i.bk 's/REGION_PLACEHOLDER/'${region}'/g'                     buildspec/cluster.yaml
+      - sed -i.bk 's/EKSVERSION_PLACEHOLDER/'${eksClusterVersion}'/g'      buildspec/cluster.yaml
+      - sed -i.bk 's/VPCID_PLACEHOLDER/'${vpcId}'/g'                       buildspec/cluster.yaml
+      - sed -i.bk 's#CIDRBLOCK_PLACEHOLDER#'${cidrBlock}'#g'               buildspec/cluster.yaml
+      - sed -i.bk 's/SHAREDNODESG_PLACEHOLDER/'${sharedNodeSg}'/g'         buildspec/cluster.yaml
+      - sed -i.bk 's/SUBNET1_PLACEHOLDER/'${subnet1}'/g'                   buildspec/cluster.yaml
+      - sed -i.bk 's/SUBNET2_PLACEHOLDER/'${subnet2}'/g'                   buildspec/cluster.yaml
+      - sed -i.bk 's#KEYARN_PLACEHOLDER#'${keyARN}'#g'                     buildspec/cluster.yaml
+      - sed -i.bk 's/NAMESPACE_PLACEHOLDER/'${namespace}'/g'               buildspec/cluster.yaml
+      - sed -i.bk 's#CLOUDWATCHWRITEACCESSPOLICYARN_PLACEHOLDER#'${CloudWatchWriteAccessPolicyArn}'#g'   buildspec/cluster.yaml
+      - sed -i.bk 's#S3READWRITEACCESSPOLICYARN_PLACEHOLDER#'${S3ReadWriteAccessPolicyArn}'#g'           buildspec/cluster.yaml
+      - sed -i.bk 's#SMKMSREADACCESSPOLICYARN_PLACEHOLDER#'${SMKMSReadAccessPolicyArn}'#g'               buildspec/cluster.yaml
+      - sed -i.bk 's#CBEKSIAMROLEARN_PLACEHOLDER#'${CbEksIamRoleArn}'#g'   buildspec/cluster.yaml
+      - sed -i.bk 's#EKSIAMROLEARN_PLACEHOLDER#'${EksIamRoleArn}'#g'       buildspec/cluster.yaml
+      - sed -i.bk 's/APPPREFIX_PLACEHOLDER/'${appPrefix}'/g'               buildspec/cluster.yaml
+      - sed -i.bk 's/ACCOUNTID_PLACEHOLDER/'${accountId}'/g'               buildspec/cluster.yaml
+      - cat buildspec/cluster.yaml
+      - eksctl create cluster -f buildspec/cluster.yaml
+      ### Add 443 ingress rule from the EC2 Bastion Ip or SG to the cluster secondary SG,
+      ### you can do it using the console or using the following commands
+      # Get the id of the eks sg
+      - sg_id=$(aws eks describe-cluster --name ${clusterNameLower} --query cluster.resourcesVpcConfig.securityGroupIds[0] --region ${region} --output text)
+      - cidrOrIp=$(ip addr show eth0 | grep 'inet '| awk '{print $2}' | awk -F'/' '{print $1}')
+      # Change the sg to the above sg id, and update the cidr to the private subnets cidr
+      - aws ec2 authorize-security-group-ingress \
+         --group-id ${sg_id}                     \
+         --protocol tcp                          \
+         --port 443                              \
+         --cidr "${cidrOrIp}/32"                 \
+         --region ${region}
+      ### Get credentials to access the eks cluster
+      - aws eks --region ${region} update-kubeconfig --name ${clusterNameLower}
+      ### Verify access to eks
+      - kubectl get nodes -A
+      - aws ec2 revoke-security-group-ingress   \
+          --group-id ${sg_id}                   \
+          --protocol tcp                        \
+          --port 443                            \
+          --cidr "${cidrOrIp}/32"               \
+          --region ${region}
 artifacts:
   files:
     - manifests/**/*
