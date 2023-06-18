@@ -11,9 +11,9 @@ AMX_PPL_ECR_REPO=$6
 AWS_REGION=$7
 region=${AWS_REGION,,}
 EKS_DEPLOYER_ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${AMX_PPL_CLUSTER_EKS}-iam-rol-eks-deployer"
-EKS_ROLE_KUBECTL_ARN="arn:aws:iam::${ACCOUNT_ID}:role/AMX-PPL-CB-EKS-KUBECTL-${ACCOUNT_ID}-${AWS_REGION}"
+EKS_ROLE_KUBECTL_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${AMX_PPL_CLUSTER_EKS}-IAM-KUBECTL-ROLE"
+# This needs to be moved to CI/CD Pipeline Backend
 EKS_ROLE_BACKEND_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${AMX_PPL_CLUSTER_EKS}-${ACCOUNT_ID}-${AWS_REGION}"
-
 
 CREDENTIALS=$(aws sts assume-role --role-arn ${EKS_ROLE_KUBECTL_ARN} --role-session-name amx-ppl-cc-admin)
 export AWS_ACCESS_KEY_ID="$(echo ${CREDENTIALS} | jq -r '.Credentials.AccessKeyId')"
@@ -35,18 +35,20 @@ aws ec2 authorize-security-group-ingress \
    --cidr "${cidrOrIp}/32"               \
    --region ${region}
 
-aws eks update-kubeconfig            \
+aws eks update-kubeconfig              \
   --name ${AMX_PPL_CLUSTER_EKS}        \
-  --role-arn ${EKS_DEPLOYER_ROLE_ARN} \
+  --role-arn ${EKS_DEPLOYER_ROLE_ARN}  \
   --region ${AWS_REGION}
 
-EksCheckRoleBackend=$(kubectl get cm aws-auth -n kube-system -o yaml | grep rolearn | grep ${AMX_PPL_CLUSTER_EKS}-${ACCOUNT_ID}-${AWS_REGION})
-if [ "${EksCheckRoleBackend}" == "" ]
-then
-  ROLE="    - groups:\n      - system:masters\n      rolearn: ${EKS_ROLE_BACKEND_ARN}\n      username: codebuild-eks"
-  kubectl get -n kube-system configmap/aws-auth -o yaml | awk "/mapRoles: \|/{print;print \"${ROLE}\";next}1" > /tmp/aws-auth-patch-backend.yml
-  kubectl patch configmap/aws-auth -n kube-system --patch "$(cat /tmp/aws-auth-patch-backend.yml)"
-fi
+# This needs to be moved to CI/CD Pipeline Backend
+#EksCheckRoleBackend=$(kubectl get cm aws-auth -n kube-system -o yaml | grep rolearn | grep ${AMX_PPL_CLUSTER_EKS}-${ACCOUNT_ID}-${AWS_REGION})
+#if [ "${EksCheckRoleBackend}" == "" ]
+#then
+#  ROLE="    - groups:\n      - system:masters\n      rolearn: ${EKS_ROLE_BACKEND_ARN}\n      username: codebuild-eks"
+#  kubectl get -n kube-system configmap/aws-auth -o yaml | awk "/mapRoles: \|/{print;print \"${ROLE}\";next}1" > /tmp/aws-auth-patch-backend.yml
+#  kubectl patch configmap/aws-auth -n kube-system --patch "$(cat /tmp/aws-auth-patch-backend.yml)"
+#fi
+
 EksCheckRoleKubectl=$(kubectl get cm aws-auth -n kube-system -o yaml | grep rolearn | grep ${EKS_ROLE_KUBECTL_ARN})
 if [ "${EksCheckRoleKubectl}" == "" ]
 then

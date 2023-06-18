@@ -31,6 +31,10 @@ Parameters:
     Description: >
       Git branch on which integration occurs. Typical value here would be "main" but might differ
       for your specific use case
+  IamStackName:
+    Type: String
+    Default: "AMX-PPL-CC-DES-IAM-PERMISSIONS-EKS"
+    Description: Escribe el nombre del stack que se utilizó para generar los roles de IAM
   EksCodebuildCMK:
     Type: String
     Description: Define the ARN of CMK key for CodeBuild
@@ -39,10 +43,10 @@ Parameters:
     Type: String
     Description: Define the ARN of CMK key for CodeBuild
     Default: 'arn:aws:kms:us-east-1:983406763236:key/571266d4-f4d4-45ba-8ef0-998613789a8a'
-  CodePipelineS3Bucket:
+  CodePipelineS3BucketName:
     Type: String
-    Default: 'amx-ppl-cc-des-s3-create-eks-1'
     Description: CodePipeline Artifact S3 Bucket Name
+    Default: 'amx-ppl-cc-des-s3-create-eks-1'
 
 # VPC Parameters
 #  vpcId:
@@ -95,15 +99,6 @@ Parameters:
     Type: String
     Description: CodeBuild EKS IAM Role ARN
     Default: arn:aws:iam::983406763236:role/AMX-PPL-CB-EKS-983406763236-us-east-1
-
-#Mappings:
-#  EnvironmentToPipelineBucket:
-#    PROD:
-#      BucketName: amx-ppl-cc-prod-s3-create-eks
-#    DES:
-#      BucketName: amx-ppl-cc-des-s3-create-eks-1
-#    QA:
-#      BucketName: amx-ppl-cc-qa-s3-create-eks
 
 Resources:
   EksSnsApprovalNotification:
@@ -212,7 +207,7 @@ Resources:
           event:
             - FAILED
       RoleArn:
-          Fn::ImportValue: ppl-cc-cw-eks-role
+          Fn::ImportValue: !Sub "${IamStackName}-EksAmazonCloudWatchEventRole"
 
   EksCodebuildStateFailureEventRule:
     Type: "AWS::Events::Rule"
@@ -240,7 +235,7 @@ Resources:
               build-status: "$.detail.build-status"
               deep-link: "$.detail.additional-information.logs.deep-link"
       RoleArn:
-          Fn::ImportValue: ppl-cc-cw-eks-role
+          Fn::ImportValue: !Sub "${IamStackName}-EksAmazonCloudWatchEventRole"
 
   EksConfigureLogGroup:
     Type: AWS::Logs::LogGroup
@@ -374,7 +369,7 @@ Resources:
           Status: ENABLED
       Name: !Sub 'AMX-PPL-CC-${AWSEnvironment}-CB-DEPLOY-EKS'
       ServiceRole: 
-        Fn::ImportValue: ppl-cc-cb-eks-role
+        Fn::ImportValue: !Sub "${IamStackName}-EksCodeBuildRole"
       VpcConfig:
           SecurityGroupIds: 
             - !GetAtt EksCodeBuildConfigureSecurityGroup.GroupId
@@ -465,7 +460,7 @@ Resources:
           Status: ENABLED
       Name: !Sub 'AMX-PPL-CC-${AWSEnvironment}-CB-CONFIGURE-EKS'
       ServiceRole: 
-        Fn::ImportValue: ppl-cc-cb-eks-role
+        Fn::ImportValue: !Sub "${IamStackName}-EksCodeBuildRole"
       VpcConfig:
           SecurityGroupIds: 
             - !GetAtt EksCodeBuildConfigureSecurityGroup.GroupId
@@ -504,11 +499,11 @@ Resources:
     Properties:
       ArtifactStore:
         Type: S3
-        Location: !Ref CodePipelineS3Bucket
+        Location: !Ref CodePipelineS3BucketName
       Name: !Sub 'AMX-PPL-CC-${AWSEnvironment}-PIPELINE-DEPLOY-EKS'
       RestartExecutionOnUpdate: false
       RoleArn:
-        Fn::ImportValue: ppl-cc-pipeline-eks-role
+        Fn::ImportValue: !Sub "${IamStackName}-EksPipelineRole"
       Stages:
         - Name: Checkout
           Actions:

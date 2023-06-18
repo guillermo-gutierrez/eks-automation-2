@@ -1,5 +1,10 @@
 # Changelog
 
+0.0.3 (2023-06-18)
+* AMX-PPL-CC-DES-EKS-PIPELINE-CF.yaml: Adjust Import Role Name values
+* AMX-PPL-CC-DES-IAM-PERMISSIONS-EKS-CF.yaml: Adjut Export Role Name values
+* bin/ConfigureEks.sh: Role Name Adjustment
+
 0.0.2 (2023-06-09)
 * AMX-PPL-CC-DES-EKS-PIPELINE-CF.yaml
 * AMX-PPL-CC-DES-IAM-PERMISSIONS-EKS-CF.yaml
