@@ -38,7 +38,7 @@ Resources:
           - Effect: Allow
             Principal:
               AWS:
-                - !Sub "arn:aws:iam::${AWS::AccountId}:role/AMX-PPL-CB-EKS-KUBECTL-${AWS::AccountId}-${AWS::Region}"
+                - !Sub "arn:aws:iam::${AWS::AccountId}:role/${AppPrefix}-${Environment}-IAM-KUBECTL-ROLE"
             Action:
               - sts:AssumeRole
       ManagedPolicyArns:
