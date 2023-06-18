@@ -1,5 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Parameters:
+  AppPrefixUpper:
+    Type: String
+    Description: Application Prefix
+    Default: AMX-PPL-CC
   AWSEnvironment:
     Type: String
     Description: Sort of AWS AMX environment
@@ -7,21 +11,16 @@ Parameters:
       - "PROD"
       - "DES"
       - "QA"
-
-Mappings:
-  EnvironmentToPipelineBucket:
-    PROD:
-      BucketName: arn:aws:s3:::amx-ppl-cc-prod-s3-create-eks
-    DES:
-      BucketName: arn:aws:s3:::amx-ppl-cc-des-s3-create-eks-1
-    QA:
-      BucketName: arn:aws:s3:::amx-ppl-cc-qa-s3-create-eks
+  CodePipelineS3BucketName:
+    Type: String
+    Description: CodePipeline Artifact S3 Bucket Name
+    Default: 'amx-ppl-cc-des-s3-create-eks-1'
 
 Resources:
   EksAmazonCloudWatchEventRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-CW-EVENT-ROLE'
+      RoleName: !Sub '${AppPrefixUpper}-${AWSEnvironment}-CW-EVENT-ROLE'
       AssumeRolePolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -34,16 +33,16 @@ Resources:
       Path: '/'
       Policies:
         -
-          PolicyName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-CW-EVENT-POLICY-1'
+          PolicyName: !Sub '${AppPrefixUpper}-${AWSEnvironment}-CW-EVENT-POLICY-1'
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
               -
                 Effect: Allow
                 Action: codepipeline:StartPipelineExecution
-                Resource: !Sub 'arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:AMX-PPL-CC-${AWSEnvironment}-PIPELINE-EKS'
+                Resource: !Sub 'arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${AppPrefixUpper}-${AWSEnvironment}-PIPELINE-EKS'
         -
-          PolicyName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-CW-EVENT-POLICY-2'
+          PolicyName: !Sub '${AppPrefixUpper}-${AWSEnvironment}-CW-EVENT-POLICY-2'
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
@@ -51,8 +50,8 @@ Resources:
                 Effect: Allow
                 Action: codebuild:StartBuild
                 Resource: 
-                  - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/AMX-PPL-CC-${AWSEnvironment}-CB-CONFIGURE-EKS'
-                  - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/AMX-PPL-CC-${AWSEnvironment}-CB-DEPLOY-EKS'
+                  - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/${AppPrefixUpper}-${AWSEnvironment}-CB-CONFIGURE-EKS'
+                  - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/${AppPrefixUpper}-${AWSEnvironment}-CB-DEPLOY-EKS'
       Tags:
         - Key: Project
           Value: PaperlessCC
@@ -86,7 +85,7 @@ Resources:
   EksPipelineRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-IAM-PIPELINE-ROLE'
+      RoleName: !Sub '${AppPrefixUpper}-${AWSEnvironment}-IAM-PIPELINE-ROLE'
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -107,11 +106,7 @@ Resources:
                 Effect: Allow
                 Action:
                   - s3:ListBucket
-                Resource:
-                  - !FindInMap
-                    - EnvironmentToPipelineBucket
-                    - !Ref AWSEnvironment
-                    - BucketName
+                Resource: !Sub "arn:aws:s3:::${CodePipelineS3BucketName}"
               - Sid: GetAndPutArtifacts
                 Effect: Allow
                 Action:
@@ -120,14 +115,7 @@ Resources:
                   - s3:GetObjectVersion
                   - s3:PutObject
                   - s3:GetBucketPolicy
-                Resource:
-                  - !Join
-                    - ''
-                    - - !FindInMap
-                        - EnvironmentToPipelineBucket
-                        - !Ref AWSEnvironment
-                        - BucketName
-                      - /*
+                Resource: !Sub "arn:aws:s3:::${CodePipelineS3BucketName}/*"
               - Sid: ExecuteCloudFormation
                 Effect: Allow
                 Action:
@@ -155,8 +143,8 @@ Resources:
                   - codebuild:BatchGetBuilds
                   - codebuild:StopBuild
                 Resource: 
-                  - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/AMX-PPL-CC-${AWSEnvironment}-CB-CONFIGURE-EKS'
-                  - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/AMX-PPL-CC-${AWSEnvironment}-CB-DEPLOY-EKS'
+                  - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/${AppPrefixUpper}-${AWSEnvironment}-CB-CONFIGURE-EKS'
+                  - !Sub 'arn:aws:codebuild:${AWS::Region}:${AWS::AccountId}:project/${AppPrefixUpper}-${AWSEnvironment}-CB-DEPLOY-EKS'
               - Sid: CodeStarConnection
                 Effect: Allow
                 Action: codestar-connections:UseConnection
@@ -165,7 +153,7 @@ Resources:
                 Effect: Allow
                 Action:
                   - sns:Publish
-                Resource: !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:AMX-PPL-CC-${AWSEnvironment}-SNS-EKS-APPROVAL'
+                Resource: !Sub 'arn:aws:sns:${AWS::Region}:${AWS::AccountId}:${AppPrefixUpper}-${AWSEnvironment}-SNS-EKS-APPROVAL'
               - Sid: CloudWatchLogGroups
                 Effect: Allow
                 Action:
@@ -173,7 +161,7 @@ Resources:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
                   - logs:DescribeLogStreams
-                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/paperless/AMX-PPL-CC-${AWSEnvironment}-CW-LOGGROUP-DEPLOY-EKS:*'
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/paperless/${AppPrefixUpper}-${AWSEnvironment}-CW-LOGGROUP-DEPLOY-EKS:*'
               - Sid: ManageEncryption
                 Effect: Allow
                 Action:
@@ -214,7 +202,7 @@ Resources:
   EksCodeBuildRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-IAM-CB-ROLE'
+      RoleName: !Sub '${AppPrefixUpper}-${AWSEnvironment}-IAM-CB-ROLE'
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -241,7 +229,7 @@ Resources:
                   - logs:DescribeLogStreams
                   - logs:*
                 Resource: 
-                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/paperless/AMX-PPL-CC-${AWSEnvironment}-CW-LOGGROUP-EKS-CONFIGURE:*" 
+                  - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/paperless/${AppPrefixUpper}-${AWSEnvironment}-CW-LOGGROUP-EKS-CONFIGURE:*" 
                   - !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/eks/*" 
               - Sid: GetAndPutArtifacts
                 Effect: Allow
@@ -249,23 +237,12 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                   - s3:DeleteObject
-                Resource:
-                  - !Join
-                    - ''
-                    - - !FindInMap
-                        - EnvironmentToPipelineBucket
-                        - !Ref AWSEnvironment
-                        - BucketName
-                      - /*
+                Resource: !Sub "arn:aws:s3:::${CodePipelineS3BucketName}/*"
               - Sid: ListObjectsForCodeBuild
                 Effect: Allow
                 Action:
                   - s3:ListBucket
-                Resource:
-                  - !FindInMap
-                    - EnvironmentToPipelineBucket
-                    - !Ref AWSEnvironment
-                    - BucketName
+                Resource: !Sub "arn:aws:s3:::${CodePipelineS3BucketName}/*"
               - Sid: CloudformationPermission
                 Effect: Allow
                 Action: cloudformation:*
@@ -360,7 +337,7 @@ Resources:
   EksKubectlRole:
     Type: "AWS::IAM::Role"
     Properties:
-      RoleName: !Sub "AMX-PPL-CB-EKS-KUBECTL-${AWS::AccountId}-${AWS::Region}"
+      RoleName: !Sub '${AppPrefixUpper}-${AWSEnvironment}-IAM-KUBECTL-ROLE'
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -457,17 +434,17 @@ Outputs:
     Description: CloudWatch EventBridge IAM role
     Value: !GetAtt EksAmazonCloudWatchEventRole.Arn
     Export:
-      Name: ppl-cc-cw-eks-role
+      Name: ${AWS::StackName}-EksAmazonCloudWatchEventRole
 
   EkspplPipelineRole:
     Description: Pipeline IAM role
     Value: !GetAtt EksPipelineRole.Arn
     Export:
-      Name: ppl-cc-pipeline-eks-role
+      Name: ${AWS::StackName}-EksPipelineRole
 
   EkspplCBRole:
     Description: CodeBuild IAM role
     Value: !GetAtt EksCodeBuildRole.Arn
     Export:
-      Name: ppl-cc-cb-eks-role
+      Name: ${AWS::StackName}-EksCodeBuildRole
   
