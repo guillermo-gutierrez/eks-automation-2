@@ -1,6 +1,6 @@
 #!/bin/bash
 set -x
-set -o errexit
+set -e
 
 # Creating an EKS Cluster from an EC2 Instance using EKSCTL
 #
@@ -264,9 +264,7 @@ fi
 
 ## Check if cluster already exists...
 
-set +e
-existingClusterName=$(aws eks list-clusters --output text | grep "${clusterNameLower}")
-set -e
+existingClusterName=$(aws eks list-clusters --output text | grep "${clusterNameLower}" | true)
 
 if [ "${existingClusterName}" != "" ]
 then
