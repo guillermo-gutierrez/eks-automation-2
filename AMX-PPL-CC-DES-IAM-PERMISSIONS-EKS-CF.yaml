@@ -434,17 +434,17 @@ Outputs:
     Description: CloudWatch EventBridge IAM role
     Value: !GetAtt EksAmazonCloudWatchEventRole.Arn
     Export:
-      Name: ${AWS::StackName}-EksAmazonCloudWatchEventRole
+      Name: !Sub "${AWS::StackName}-EksAmazonCloudWatchEventRole"
 
   EkspplPipelineRole:
     Description: Pipeline IAM role
     Value: !GetAtt EksPipelineRole.Arn
     Export:
-      Name: ${AWS::StackName}-EksPipelineRole
+      Name: !Sub "${AWS::StackName}-EksPipelineRole"
 
   EkspplCBRole:
     Description: CodeBuild IAM role
     Value: !GetAtt EksCodeBuildRole.Arn
     Export:
-      Name: ${AWS::StackName}-EksCodeBuildRole
+      Name: !Sub "${AWS::StackName}-EksCodeBuildRole"
   

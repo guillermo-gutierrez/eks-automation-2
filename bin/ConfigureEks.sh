@@ -11,7 +11,7 @@ AMX_PPL_ECR_REPO=$6
 AWS_REGION=$7
 region=${AWS_REGION,,}
 EKS_DEPLOYER_ROLE_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${AMX_PPL_CLUSTER_EKS}-iam-rol-eks-deployer"
-EKS_ROLE_KUBECTL_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${AMX_PPL_CLUSTER_EKS}-IAM-KUBECTL-ROLE"
+EKS_ROLE_KUBECTL_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${AMX_PPL_CLUSTER_EKS^^}-IAM-KUBECTL-ROLE"
 # This needs to be moved to CI/CD Pipeline Backend
 EKS_ROLE_BACKEND_ARN="arn:aws:iam::${ACCOUNT_ID}:role/${AMX_PPL_CLUSTER_EKS}-${ACCOUNT_ID}-${AWS_REGION}"
 
