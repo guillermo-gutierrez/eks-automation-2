@@ -35,7 +35,6 @@ phases:
     commands:
       ## Obtain some info first
       # accountId
-      - set -x
       - clusterNameLower="${appPrefix,,}-${environment,,}"
       - clusterNameUpper="${appPrefix^^}-${environment^^}"
       - namespace="${clusterNameLower}-ns"
