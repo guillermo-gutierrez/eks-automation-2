@@ -1,9 +1,13 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Parameters:
-  appPrefix:
+  AppPrefix:
     Type: String
     Description: Application Prefix
     Default: amx-ppl-cc
+  AppPrefixUpper:
+    Type: String
+    Description: Application Prefix
+    Default: AMX-PPL-CC
   AWSEnvironment:
     Type: String
     Description: Sort of AWS AMX environment
@@ -104,7 +108,7 @@ Resources:
   EksSnsApprovalNotification:
     Type: AWS::SNS::Topic
     Properties:
-      DisplayName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-SNS-EKS-APPROVAL'
+      DisplayName: !Sub '${AppPrefixUpper}-${AWSEnvironment}-SNS-EKS-APPROVAL'
       FifoTopic: false
       Tags:
         - Key: Project
@@ -131,7 +135,7 @@ Resources:
           Value: !Sub "${AWS::AccountId}"
         - Key: Area
           Value: ATOS
-      TopicName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-SNS-EKS-APPROVAL'
+      TopicName: !Sub '${AppPrefixUpper}-${AWSEnvironment}-SNS-EKS-APPROVAL'
 
   EksSnsApprovalSubscription:
     Type: AWS::SNS::Subscription
@@ -143,7 +147,7 @@ Resources:
   EksSnsPipelinesNotification:
     Type: AWS::SNS::Topic
     Properties:
-      DisplayName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-SNS-EKS-EVENTS'
+      DisplayName: !Sub '${AppPrefixUpper}-${AWSEnvironment}-SNS-EKS-EVENTS'
       FifoTopic: false
       Tags:
         - Key: Project
@@ -170,7 +174,7 @@ Resources:
           Value: !Sub "${AWS::AccountId}"
         - Key: Area
           Value: ATOS
-      TopicName: !Sub 'AMX-PPL-CC-${AWSEnvironment}-SNS-EKS-EVENTS'
+      TopicName: !Sub '${AppPrefixUpper}-${AWSEnvironment}-SNS-EKS-EVENTS'
 
   EksEventBridgeToToSnsPolicy:
     Type: AWS::SNS::TopicPolicy
@@ -188,7 +192,7 @@ Resources:
   EksCodePipelineStateFailureEventRule:
     Type: AWS::Events::Rule
     Properties:
-      Name: !Sub 'AMX-PPL-CC-${AWSEnvironment}-CW-EKS-PIPELINE-RULE'
+      Name: !Sub '${AppPrefixUpper}-${AWSEnvironment}-CW-EKS-PIPELINE-RULE'
       Description: 'A CloudWatch Event Rule that sends a notification to provide notice over failed events from Infrastructure EKS pipeline'
       State: 'ENABLED'
       Targets:
@@ -212,7 +216,7 @@ Resources:
   EksCodebuildStateFailureEventRule:
     Type: "AWS::Events::Rule"
     Properties:
-      Name: !Sub 'AMX-PPL-CC-${AWSEnvironment}-CW-CODEBUILD-EKS-RULE'
+      Name: !Sub '${AppPrefixUpper}-${AWSEnvironment}-CW-CODEBUILD-EKS-RULE'
       Description: "Rule for sending failure notifications to SNS topic"
       EventPattern:
         source:
@@ -240,7 +244,7 @@ Resources:
   EksConfigureLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/paperless/AMX-PPL-CC-${AWSEnvironment}-CW-LOGGROUP-EKS-CONFIGURE'
+      LogGroupName: !Sub '/paperless/${AppPrefixUpper}-${AWSEnvironment}-CW-LOGGROUP-EKS-CONFIGURE'
       RetentionInDays: 90
       Tags:
         - Key: Project
@@ -330,8 +334,8 @@ Resources:
           ComputeType: BUILD_GENERAL1_SMALL
           PrivilegedMode: false
           EnvironmentVariables:
-            - Name: appPrefix
-              Value: !Ref appPrefix
+            - Name: AppPrefix
+              Value: !Ref AppPrefix
             - Name: environment
               Value: !Ref AWSEnvironment
             - Name: keyARN
@@ -367,7 +371,7 @@ Resources:
         CloudWatchLogs:
           GroupName: !Ref EksConfigureLogGroup
           Status: ENABLED
-      Name: !Sub 'AMX-PPL-CC-${AWSEnvironment}-CB-DEPLOY-EKS'
+      Name: !Sub '${AppPrefixUpper}-${AWSEnvironment}-CB-DEPLOY-EKS'
       ServiceRole: 
         Fn::ImportValue: !Sub "${IamStackName}-EksCodeBuildRole"
       VpcConfig:
@@ -421,8 +425,8 @@ Resources:
           ComputeType: BUILD_GENERAL1_SMALL
           PrivilegedMode: false
           EnvironmentVariables:
-            - Name: appPrefix
-              Value: !Ref appPrefix
+            - Name: AppPrefix
+              Value: !Ref AppPrefix
             - Name: environment
               Value: !Ref AWSEnvironment
             - Name: keyARN
@@ -458,7 +462,7 @@ Resources:
         CloudWatchLogs:
           GroupName: !Ref EksConfigureLogGroup
           Status: ENABLED
-      Name: !Sub 'AMX-PPL-CC-${AWSEnvironment}-CB-CONFIGURE-EKS'
+      Name: !Sub '${AppPrefixUpper}-${AWSEnvironment}-CB-CONFIGURE-EKS'
       ServiceRole: 
         Fn::ImportValue: !Sub "${IamStackName}-EksCodeBuildRole"
       VpcConfig:
@@ -500,7 +504,7 @@ Resources:
       ArtifactStore:
         Type: S3
         Location: !Ref CodePipelineS3BucketName
-      Name: !Sub 'AMX-PPL-CC-${AWSEnvironment}-PIPELINE-DEPLOY-EKS'
+      Name: !Sub '${AppPrefixUpper}-${AWSEnvironment}-PIPELINE-DEPLOY-EKS'
       RestartExecutionOnUpdate: false
       RoleArn:
         Fn::ImportValue: !Sub "${IamStackName}-EksPipelineRole"

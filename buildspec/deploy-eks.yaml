@@ -35,8 +35,8 @@ phases:
     commands:
       ## Obtain some info first
       # accountId
-      - clusterNameLower="${appPrefix,,}-${environment,,}"
-      - clusterNameUpper="${appPrefix^^}-${environment^^}"
+      - clusterNameLower="${AppPrefix,,}-${environment,,}"
+      - clusterNameUpper="${AppPrefix^^}-${environment^^}"
       - namespace="${clusterNameLower}-ns"
       - |
         if [ "${accountId}" == "" ]
@@ -68,17 +68,17 @@ phases:
           # sharedNodeSg
           if [ "${sharedNodeSg}" == "" ]
           then
-            sharedNodeSg=$(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=${vpcId}" "Name=tag:Name,Values=${appPrefix^^}-${environment^^}-VPC-SG-APP" --query "SecurityGroups[*].GroupId" --output text)
+            sharedNodeSg=$(aws ec2 describe-security-groups --filters "Name=vpc-id,Values=${vpcId}" "Name=tag:Name,Values=${AppPrefix^^}-${environment^^}-VPC-SG-APP" --query "SecurityGroups[*].GroupId" --output text)
           fi
           # subnet1
           if [ "${subnet1}" == "" ]
           then
-            subnet1=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${vpcId}" "Name=tag:Name,Values=${appPrefix^^}-${environment^^}-VPC-PRV-APP-01" --query "Subnets[*].SubnetId" --output text)
+            subnet1=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${vpcId}" "Name=tag:Name,Values=${AppPrefix^^}-${environment^^}-VPC-PRV-APP-01" --query "Subnets[*].SubnetId" --output text)
           fi
           # subnet2
           if [ "${subnet2}" == "" ]
           then
-            subnet2=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${vpcId}" "Name=tag:Name,Values=${appPrefix^^}-${environment^^}-VPC-PRV-APP-02" --query "Subnets[*].SubnetId" --output text)
+            subnet2=$(aws ec2 describe-subnets --filters "Name=vpc-id,Values=${vpcId}" "Name=tag:Name,Values=${AppPrefix^^}-${environment^^}-VPC-PRV-APP-02" --query "Subnets[*].SubnetId" --output text)
           fi
         else
           echo "No VPC found, exiting..."
@@ -118,7 +118,7 @@ phases:
       - sed -i.bk 's#SMKMSREADACCESSPOLICYARN_PLACEHOLDER#'${SMKMSReadAccessPolicyArn}'#g'               buildspec/cluster.yaml
       - sed -i.bk 's#CBEKSIAMROLEARN_PLACEHOLDER#'${CbEksIamRoleArn}'#g'   buildspec/cluster.yaml
       - sed -i.bk 's#EKSIAMROLEARN_PLACEHOLDER#'${EksIamRoleArn}'#g'       buildspec/cluster.yaml
-      - sed -i.bk 's/APPPREFIX_PLACEHOLDER/'${appPrefix}'/g'               buildspec/cluster.yaml
+      - sed -i.bk 's/APPPREFIX_PLACEHOLDER/'${AppPrefix}'/g'               buildspec/cluster.yaml
       - sed -i.bk 's/ACCOUNTID_PLACEHOLDER/'${accountId}'/g'               buildspec/cluster.yaml
       - cat buildspec/cluster.yaml
       - eksctl create cluster -f buildspec/cluster.yaml

@@ -31,7 +31,7 @@ phases:
       - aws --version
   pre_build:
     commands:
-      - oidc_id=$(aws eks describe-cluster --name ${appPrefix}-${environment,,} --region $AWS_REGION --query "cluster.identity.oidc.issuer" --output text | sed -e "s/^https:\/\///")
+      - oidc_id=$(aws eks describe-cluster --name ${AppPrefix}-${environment,,} --region $AWS_REGION --query "cluster.identity.oidc.issuer" --output text | sed -e "s/^https:\/\///")
       - oidc_provider=$(aws iam list-open-id-connect-providers | grep ${oidc_id} | cut -d "/" -f4)
       - |
         if [ -z "${oidc_provider}" ]
@@ -44,7 +44,7 @@ phases:
   build:
     commands:
       - chmod +x bin/ConfigureEks.sh
-      - ./bin/ConfigureEks.sh ${environment,,} ${appPrefix}-${environment,,} ${appPrefix} ${appPrefix}-${environment,,}-ns ${vpcId} $AMX_PPL_ECR_REPO $AWS_REGION
+      - ./bin/ConfigureEks.sh ${environment,,} ${AppPrefix}-${environment,,} ${AppPrefix} ${AppPrefix}-${environment,,}-ns ${vpcId} $AMX_PPL_ECR_REPO $AWS_REGION
 artifacts:
   files:
     - manifests/**/*

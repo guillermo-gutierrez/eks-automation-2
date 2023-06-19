@@ -211,10 +211,10 @@ Resources:
               Service: codebuild.amazonaws.com
             Action: sts:AssumeRole
       ManagedPolicyArns:
-        - !Sub "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-        - !Sub "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
-        - !Sub "arn:aws:iam::aws:policy/AWSCloudFormationFullAccess"
-        - !Sub "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+        - arn:aws:iam::aws:policy/AWSCloudFormationFullAccess
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
       Policies:
         - PolicyName: CodeBuildAccess
           PolicyDocument:
@@ -347,10 +347,10 @@ Resources:
             Action:
               - "sts:AssumeRole"
       ManagedPolicyArns:
-        - !Sub "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-        - !Sub "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
-        - !Sub "arn:aws:iam::aws:policy/AWSCloudFormationFullAccess"
-        - !Sub "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - arn:aws:iam::aws:policy/AmazonEC2FullAccess
+        - arn:aws:iam::aws:policy/AWSCloudFormationFullAccess
+        - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
       Path: "/"
       Policies:
         - PolicyName: EksEvents
