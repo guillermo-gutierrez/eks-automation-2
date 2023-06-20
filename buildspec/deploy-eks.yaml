@@ -26,7 +26,7 @@ phases:
       - mv /tmp/linux-amd64/helm /usr/local/bin && chmod +x /usr/local/bin/helm
       - helm version --short
       - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-      - unzip -u awscliv2.zip
+      - unzip -q -u awscliv2.zip
       - ./aws/install --bin-dir /root/.pyenv/shims/ --install-dir /usr/local/aws-cli --update
       - aws --version
       - yum install jq -y

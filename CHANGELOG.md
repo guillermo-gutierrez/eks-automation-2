@@ -1,5 +1,9 @@
 # Changelog
 
+0.0.4
+* buildspec/configure-eks.yaml: Bring all of the code to yaml file.
+* buildspec/deploy-eks.yaml: Make unzip quiet.
+
 0.0.3 (2023-06-18)
 * AMX-PPL-CC-DES-EKS-PIPELINE-CF.yaml: Adjust Import Role Name values
 * AMX-PPL-CC-DES-IAM-PERMISSIONS-EKS-CF.yaml: Adjut Export Role Name values
