@@ -1,0 +1,10 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - env
+  build:
+    commands:
+      - clusterNameLower="${AppPrefix,,}-${environment,,}"
+      - aws eks update-cluster-config --region $AWS_REGION --name ${clusterNameLower} --resources-vpc-config 'endpointPublicAccess=false,endpointPrivateAccess=true'

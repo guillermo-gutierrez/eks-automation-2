@@ -55,9 +55,9 @@ phases:
            --region ${region}
       - aws eks update-kubeconfig --name ${clusterNameLower} --region ${region}
       - kubectl get pods -A
-      - ###############################
-      - ### Install AWS Load Controller
-      - ###############################
+      - ########################################
+      - ### Install AWS Load Balancer Controller
+      - ########################################
       - helm repo add eks https://aws.github.io/eks-charts
       - helm repo update
       - kubectl apply -k "github.com/aws/eks-charts/stable/aws-load-balancer-controller//crds?ref=master"
@@ -164,7 +164,7 @@ phases:
             --attach-policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy \
             --approve
         fi
-      - curl https://raw.githubusercontent.com/aws-observability/aws-otel-collector/main/deployment-template/eks/otel-fargate-container-insights.yaml | sed "s/YOUR-EKS-CLUSTER-NAME/'${AMX_PPL_CLUSTER_EKS}'/" | kubectl apply -f -
+      - curl https://raw.githubusercontent.com/aws-observability/aws-otel-collector/main/deployment-template/eks/otel-fargate-container-insights.yaml | sed "s/YOUR-EKS-CLUSTER-NAME/${AMX_PPL_CLUSTER_EKS}/" | kubectl apply -f -
       - # Wait a little for components to deploy
       - sleep 60
       - # Check deployed pods

@@ -1,5 +1,12 @@
 # Changelog
 
+0.0.5 (2023-06-24)
+* AMX-PPL-CC-DES-EKS-PIPELINE-CF.yaml: Add Make EKS Private stage
+* AMX-PPL-CC-EC2-DEPLOYER-IAM-EKSCTL-CF.yaml: Remove AssumeRole for KUBECTL-ROLE
+* buildspec/cluster.yaml: Add X-Ray Trace publish policy
+* buildspec/configure-eks.yaml: Fix typo in ADOT Collector creation
+* buildspec/make-eks-private.yaml: Add Make Private code
+
 0.0.4
 * buildspec/configure-eks.yaml: Bring all of the code to yaml file.
 * buildspec/deploy-eks.yaml: Make unzip quiet.

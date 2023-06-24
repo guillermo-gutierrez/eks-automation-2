@@ -1,14 +1,5 @@
-
 version: 0.2
 
-environment_variables:
-  plaintext:
-    AMX_PPL_ENV: "DES"
-    AMX_PPL_CLUSTER_EKS: "amx-ppl-cc-des"
-    AMX_APP_PREFIX: "amx-ppl-cc-des"
-    AMX_PPL_NAMESPACE: "amx-ppl-cc-des-ns"
-    AMX_PPL_VPC_ID: "vpc-0c9d013543a933d4a"
-    AMX_PPL_ECR_REPO: "602401143452.dkr.ecr.us-east-1.amazonaws.com"
 phases:
   install:
     commands:

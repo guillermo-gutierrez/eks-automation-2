@@ -35,12 +35,6 @@ Resources:
                 - ec2.amazonaws.com
             Action:
               - sts:AssumeRole
-          - Effect: Allow
-            Principal:
-              AWS:
-                - !Sub "arn:aws:iam::${AWS::AccountId}:role/AMX-PPL-CC-DES-IAM-KUBECTL-ROLE"
-            Action:
-              - sts:AssumeRole
       ManagedPolicyArns:
         - !Sub "arn:${AWS::Partition}:iam::${AWS::Partition}:policy/AmazonSSMManagedInstanceCore"
         - !Sub "arn:${AWS::Partition}:iam::${AWS::Partition}:policy/AmazonEC2FullAccess"

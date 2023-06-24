@@ -2,11 +2,11 @@ AWSTemplateFormatVersion: '2010-09-09'
 Parameters:
   AppPrefix:
     Type: String
-    Description: Application Prefix
+    Description: Application Prefix in Lowercase
     Default: amx-ppl-cc
   AppPrefixUpper:
     Type: String
-    Description: Application Prefix
+    Description: Application Prefix in Uppercase
     Default: AMX-PPL-CC
   AWSEnvironment:
     Type: String
@@ -341,20 +341,15 @@ Resources:
             - Name: keyARN
               Value: !Ref EksSecretsCMK
             - Name: vpcId
-              Value:
-                Fn::ImportValue: PPL-CC-VPCID
+              Value: !ImportValue PPL-CC-VPCID
             - Name: cidrBlock
-              Value:
-                Fn::ImportValue: PPL-CC-VPCCidrBlock
+              Value: !ImportValue PPL-CC-VPCCidrBlock
             - Name: sharedNodeSg
-              Value:
-                Fn::ImportValue: PPL-CC-APPSecurityGroupID
+              Value: !ImportValue PPL-CC-APPSecurityGroupID
             - Name: subnet1
-              Value:
-                Fn::ImportValue: PPL-CC-Subnet03ID
+              Value: !ImportValue PPL-CC-Subnet03ID
             - Name: subnet2
-              Value:
-                Fn::ImportValue: PPL-CC-Subnet04ID
+              Value: !ImportValue PPL-CC-Subnet04ID
             - Name: eksClusterVersion
               Value: !Ref eksClusterVersion
             - Name: CloudWatchWriteAccessPolicyArn
@@ -370,6 +365,7 @@ Resources:
       LogsConfig:
         CloudWatchLogs:
           GroupName: !Ref EksConfigureLogGroup
+          StreamName: !Sub "deploy-eks-stage"
           Status: ENABLED
       Name: !Sub '${AppPrefixUpper}-${AWSEnvironment}-CB-DEPLOY-EKS'
       ServiceRole: 
@@ -432,20 +428,15 @@ Resources:
             - Name: keyARN
               Value: !Ref EksSecretsCMK
             - Name: vpcId
-              Value:
-                Fn::ImportValue: PPL-CC-VPCID
+              Value: !ImportValue PPL-CC-VPCID
             - Name: cidrBlock
-              Value:
-                Fn::ImportValue: PPL-CC-VPCCidrBlock
+              Value: !ImportValue PPL-CC-VPCCidrBlock
             - Name: sharedNodeSg
-              Value:
-                Fn::ImportValue: PPL-CC-APPSecurityGroupID
+              Value: !ImportValue PPL-CC-APPSecurityGroupID
             - Name: subnet1
-              Value:
-                Fn::ImportValue: PPL-CC-Subnet03ID
+              Value: !ImportValue PPL-CC-Subnet03ID
             - Name: subnet2
-              Value:
-                Fn::ImportValue: PPL-CC-Subnet04ID
+              Value: !ImportValue PPL-CC-Subnet04ID
             - Name: eksClusterVersion
               Value: !Ref eksClusterVersion
             - Name: CloudWatchWriteAccessPolicyArn
@@ -461,8 +452,96 @@ Resources:
       LogsConfig:
         CloudWatchLogs:
           GroupName: !Ref EksConfigureLogGroup
+          StreamName: !Sub "configure-eks-stage"
           Status: ENABLED
       Name: !Sub '${AppPrefixUpper}-${AWSEnvironment}-CB-CONFIGURE-EKS'
+      ServiceRole: 
+        Fn::ImportValue: !Sub "${IamStackName}-EksCodeBuildRole"
+      VpcConfig:
+          SecurityGroupIds: 
+            - !GetAtt EksCodeBuildConfigureSecurityGroup.GroupId
+          Subnets: 
+            - Fn::ImportValue: PPL-CC-Subnet03ID
+          VpcId:
+            Fn::ImportValue: PPL-CC-VPCID
+      Tags:
+        - Key: Project
+          Value: PaperlessCC
+        - Key: Aplication-ID
+          Value: ATOS-N1-202209-Dynamics
+        - Key: Application-Role
+          Value: Web
+        - Key: CF-Version
+          Value: "1"
+        - Key: Owner
+          Value: "Oswaldo Javier Contreras R"
+        - Key: Cost-Center
+          Value: "120101"
+        - Key: Customer
+          Value: External
+        - Key: Confidentiality
+          Value: Medium
+        - Key: Compliance
+          Value: PCI
+        - Key: Environment
+          Value: !Ref AWSEnvironment
+        - Key: Account-ID
+          Value: !Sub "${AWS::AccountId}"
+        - Key: Area
+          Value: ATOS
+
+  EksCodeBuildMakePrivate:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      EncryptionKey: !Ref EksCodebuildCMK
+      Artifacts:
+        Type: CODEPIPELINE
+      Source:
+        Type: CODEPIPELINE
+        BuildSpec: buildspec/make-eks-private.yaml
+      TimeoutInMinutes: 30
+      QueuedTimeoutInMinutes: 30
+      Environment:
+          Type: LINUX_CONTAINER
+          Image: aws/codebuild/amazonlinux2-x86_64-standard:3.0
+          ImagePullCredentialsType: CODEBUILD
+          ComputeType: BUILD_GENERAL1_SMALL
+          PrivilegedMode: false
+          EnvironmentVariables:
+            - Name: AppPrefix
+              Value: !Ref AppPrefix
+            - Name: environment
+              Value: !Ref AWSEnvironment
+            - Name: keyARN
+              Value: !Ref EksSecretsCMK
+            - Name: vpcId
+              Value: !ImportValue PPL-CC-VPCID
+            - Name: cidrBlock
+              Value: !ImportValue PPL-CC-VPCCidrBlock
+            - Name: sharedNodeSg
+              Value: !ImportValue PPL-CC-APPSecurityGroupID
+            - Name: subnet1
+              Value: !ImportValue PPL-CC-Subnet03ID
+            - Name: subnet2
+              Value: !ImportValue PPL-CC-Subnet04ID
+            - Name: eksClusterVersion
+              Value: !Ref eksClusterVersion
+            - Name: CloudWatchWriteAccessPolicyArn
+              Value: !Ref CloudWatchWriteAccessPolicyArn
+            - Name: S3ReadWriteAccessPolicyArn
+              Value: !Ref S3ReadWriteAccessPolicyArn
+            - Name: SMKMSReadAccessPolicyArn
+              Value: !Ref SMKMSReadAccessPolicyArn
+            - Name: EksIamRoleArn
+              Value: !Ref EksIamRoleArn
+            - Name: CbEksIamRoleArn
+              Value: !Ref CbEksIamRoleArn
+      LogsConfig:
+        CloudWatchLogs:
+          GroupName: !Ref EksConfigureLogGroup
+          StreamName: !Sub "make-private-eks-stage"
+          Status: ENABLED
+      Name: !Sub '${AppPrefixUpper}-${AWSEnvironment}-CB-MAKEPRIVATE-EKS'
       ServiceRole: 
         Fn::ImportValue: !Sub "${IamStackName}-EksCodeBuildRole"
       VpcConfig:
@@ -564,6 +643,27 @@ Resources:
                 Provider: CodeBuild
               Configuration:
                 ProjectName: !Ref EksCodeBuildConfigureProject
+              InputArtifacts:
+                - Name: SourceArtifact
+              RunOrder: 1
+        - Name: ManualApprovalMakePrivate
+          Actions:
+            - Name: ManualApprovalMakePrivate
+              ActionTypeId:
+                Category: Approval
+                Owner: AWS
+                Provider: Manual
+                Version: 1
+        - Name: MakePrivate
+          Actions:
+            - Name: MakePrivate
+              ActionTypeId:
+                Category: Build
+                Owner: AWS
+                Version: 1
+                Provider: CodeBuild
+              Configuration:
+                ProjectName: !Ref EksCodeBuildMakePrivate
               InputArtifacts:
                 - Name: SourceArtifact
               RunOrder: 1

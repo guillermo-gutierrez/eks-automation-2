@@ -48,6 +48,9 @@ iam:
         - "CLOUDWATCHWRITEACCESSPOLICYARN_PLACEHOLDER"
         - "S3READWRITEACCESSPOLICYARN_PLACEHOLDER"
         - "SMKMSREADACCESSPOLICYARN_PLACEHOLDER"
+        - "arn:aws:iam::aws:policy/AmazonPrometheusRemoteWriteAccess"
+        - "arn:aws:iam::aws:policy/AWSXrayWriteOnlyAccess"
+        - "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 
 iamIdentityMappings:
 
